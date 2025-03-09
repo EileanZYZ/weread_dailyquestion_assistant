@@ -1,0 +1,19 @@
+{
+    "App": {
+        "wechat_dir": "D:\\WeChat\\[3.9.12.51]",
+        "wechat_ocr_dir": "C:\\Users\\Eilean\\AppData\\Roaming\\Tencent\\WeChat\\XPlugin\\Plugins\\WeChatOCR\\7079\\extracted\\WeChatOCR.exe"
+    },
+    "Client": {
+        "tencent_cloud":{
+            "secret_id": "TENCENT_CLOUD_SECRET_ID",
+            "secret_key": "TENCENT_CLOUD_SECRET_KEY"
+        }
+    },
+    "Models": [
+                "hunyuan-lite"
+            ],
+    "Prompts": {
+        "system_call": "回答用户提出的问题。要求：1、仅返回答案；2、如果用户提供选项，而仅从选项中选择。3、“这题有问题”及之后的文本为无效文本，请忽略。"
+    },
+    "Filter": "第\\s*\\d+\\s*题\\s*·\\s*共\\s*\\d+\\s*题"
+}
