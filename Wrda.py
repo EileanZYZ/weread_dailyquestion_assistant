@@ -195,5 +195,6 @@ if __name__ == "__main__":
     #             os.remove(image_path)
     # else:
     #     print("临时文件不存在")
-    self = Config()
-    print(os.getenv(self.client["tencent_cloud"]["secret_id"]))
+    # self = Config()
+    # print(os.getenv(self.client["tencent_cloud"]["secret_id"]))
+    print("hello")
