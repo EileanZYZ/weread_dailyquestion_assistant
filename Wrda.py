@@ -5,7 +5,7 @@ import re
 from wechat_ocr.ocr_manager import OcrManager, OCR_MAX_TASK_ID
 
 from module import QueryLLM
-from module import ScreenCatch
+from module import CatchScreen
 from module import RaiseInfo
 
 
@@ -20,9 +20,12 @@ class Config():
 
     def __init__(self,config_name="Wrda"):        
         config_path = os.path.join(os.path.dirname(__file__),"config",config_name+".json")
-        self.load_config(config_path)
+        # 加载配置
+        self.config(config_path)
+        # 自检
+        self.check()
 
-    def load_config(self,config_path=""):
+    def config(self,config_path=""):
         with open(config_path,"r",encoding="utf-8") as f:
             config = json.load(f)
             self.wechat_path = config['App']['wechat_dir']
@@ -31,6 +34,22 @@ class Config():
             self.models = config['Models']
             self.prompts = config['Prompts']
             self.matcher = config['Filter']
+
+    def check(self):
+        # 检查微信路径
+        if not os.path.exists(self.wechat_path):
+            raise RaiseInfo.RaiseInfo("Error","PathNotFound")
+        # 检查WeChatOcr路径
+        if not os.path.exists(self.wechat_ocr_path):
+            raise RaiseInfo.RaiseInfo("Error","WechatOcr")
+        # 检查客户端
+        if not self.client:
+            raise RaiseInfo.RaiseInfo("Error","ClientNotFound")
+        # 检查模型
+        if not self.models:
+           raise RaiseInfo.RaiseInfo("Error","ModelNotFound")
+        else:
+            raise
 
 
 class WeReadDailyquestionAssistant(Config):

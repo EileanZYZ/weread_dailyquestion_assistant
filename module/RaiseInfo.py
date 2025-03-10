@@ -15,7 +15,8 @@ class Messager:
         },
         "Error" : {
             "PathNotFound" : "找不到微信/微信OCR程序目录 \n 可能是由于微信更新，请重新设置路径",
-            "ClientNotFound" : "缺少可用的云端大模型服务 \n 可能是由于微信更新，请重新设置路径"
+            "ClientNotFound" : "缺少可用的云端大模型服务 \n 请注册一个腾讯云账号并填写密钥",
+            "ModelNotFound" : "缺少可用的模型 \n 请先在设置中选择一个可用的模型"
         }
     }
 

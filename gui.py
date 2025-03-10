@@ -8,14 +8,8 @@ import Wrda
 from module import RaiseInfo
 
 class WrdaGui:
-    defult_font :str = "Microsoft YaHei"
-    message_list : dict = {
-        "wechat" : "在微信程序目录下，定位到一个名称为版本号的文件夹中",
-		"wechat_ocr" : "示例：\n C:\\Users\\Administrator\\AppData\\Roaming\\Tencent\\WeChat\\XPlugin\\Plugins\\WeChatOCR\\7079\\extracted\\WeChatOCR.exe",
-		"saved" : "保存成功",
-        "select_window_" : "点击按钮后，再左键点击需要截图的窗口，右键取消选取",
-        "select_region" : "点击按钮后，左键画出区域，松开左键完成选取，右键取消选取"
-    }
+    default_font :str = "Microsoft YaHei"
+
     def __init__(self, root):
         """
         初始化WeRead Daily Question Assistant的图形用户界面。
@@ -29,9 +23,12 @@ class WrdaGui:
         self.root = root
         self.root.title("WeRead Daily Question Assistant")
         self.root.geometry("960x540")
-        self.root.resizable(False, False)
+        self.root.resizable(False, False)   # 禁止调整窗口大小
     
-        self.wrda = Wrda.WeReadDailyquestionAssistant()
+        # 初始化WeRead Daily Question Assistant
+        self.wrda = Wrda.WeReadDailyquestionAssistant(self.root)
+        # 创建消息提示器
+        self.messager = RaiseInfo.Messager(self.root)
     
         # 创建顶部工具栏
         self.create_toolbar()
@@ -119,43 +116,58 @@ class WrdaGui:
         # 创建一个子框架来放置“答题”按钮，并使其居中显示
         button_frame = tk.Frame(frame)
         button_frame.pack(side=tk.TOP, pady=0, fill=tk.X)
+
+        # 自检按钮
+        self.answer_check_button = tk.Button(button_frame, text="自检", 
+                                            command=lambda: self.wrda.check_config(callback=True),
+                                            width=5, height=1)
+        self.answer_check_button.pack(side=tk.LEFT, pady=1, padx=5)
+
         # 答题按钮
-        self.answer_button = tk.Button(button_frame, text="答题", 
-                                       command=self.answer_question, # 回调方法：OCR识别并答题
-                                       width=10, height=1)
-        self.answer_button.pack(side=tk.TOP, pady=5, padx=5)
+        self.answer_button = tk.Button(button_frame, text="答题",
+                                    command=self.answer_question, # 回调方法：OCR识别并答题
+                                    width=25, height=1)
+        self.answer_button.pack(side=tk.LEFT, pady=1, padx=5, expand=True)
+
+        # 提示按钮
+        self.answer_info_button = tk.Button(button_frame, 
+                                            text="?", 
+                                            fg="blue",
+                                            relief=tk.FLAT,
+                                            command=lambda: self.messager.raise_info("Messages", "AnswerQuestion"))
+        self.answer_info_button.pack(side=tk.RIGHT, pady=1, padx=3)
 
         # 创建一个子框架来放置OCR结果文本框和标签
         ocr_frame = tk.Frame(frame)
         ocr_frame.pack(side=tk.LEFT, padx=5, fill=tk.BOTH, expand=True)
         # OCR结果文本框和label
-        ocr_result_label = tk.Label(ocr_frame, text="识别结果：", font=(self.defult_font, 12))
+        ocr_result_label = tk.Label(ocr_frame, text="识别结果：", font=(self.default_font, 12))
         ocr_result_label.pack(pady=(5, 0), anchor=tk.W)
-        self.ocr_result_text = scrolledtext.ScrolledText(ocr_frame, height=5, width=20, wrap=tk.WORD, font=(self.defult_font, 10))
+        self.ocr_result_text = scrolledtext.ScrolledText(ocr_frame, height=5, width=20, wrap=tk.WORD, font=(self.default_font, 10))
         self.ocr_result_text.pack(pady=(0, 5), padx=5, fill=tk.BOTH, expand=True)
         # 绑定键盘事件，当文本区域中的按键释放（修改了文本）时，调用enable_send_button方法
         self.ocr_result_text.bind("<KeyRelease>", self.enable_send_button)
         # 发送按钮
         self.send_button = tk.Button(ocr_frame, 
-                                     text="发送", 
-                                     command=lambda: self.answer_question(self.ocr_result_text.get(1.0, tk.END).strip()), 
-                                     state=tk.DISABLED,
-                                     width=10, height=1)
+                                    text="发送", 
+                                    command=lambda: self.answer_question(self.ocr_result_text.get(1.0, tk.END).strip()), 
+                                    state=tk.DISABLED,
+                                    width=10, height=1)
         self.send_button.pack(side=tk.BOTTOM, pady=5, padx=5)
 
         # 创建一个子框架来放置AI回答文本框和标签
         answer_frame = tk.Frame(frame)
         answer_frame.pack(side=tk.LEFT, padx=5, fill=tk.BOTH, expand=True)
         # AI答案文本框和label
-        answer_label = tk.Label(answer_frame, text="AI回答：", font=(self.defult_font, 12))
+        answer_label = tk.Label(answer_frame, text="AI回答：", font=(self.default_font, 12))
         answer_label.pack(pady=(5, 0), anchor=tk.W)
-        self.answer_text = scrolledtext.ScrolledText(answer_frame, height=5, width=20, wrap=tk.WORD, font=(self.defult_font, 10))
+        self.answer_text = scrolledtext.ScrolledText(answer_frame, height=5, width=20, wrap=tk.WORD, font=(self.default_font, 10))
         self.answer_text.pack(pady=(0, 5), padx=5, fill=tk.BOTH, expand=True)
         # 复制按钮
         self.copy_button = tk.Button(answer_frame, 
-                                     text="复制", 
-                                     command=self.copy_answer, 
-                                     width=10, height=1)
+                                    text="复制", 
+                                    command=self.copy_answer, 
+                                    width=10, height=1)
         self.copy_button.pack(side=tk.BOTTOM, pady=5, padx=5)
 
         return frame
@@ -171,26 +183,26 @@ class WrdaGui:
 
         # 模型选择下拉框
         model_frame = tk.Frame(frame)
-        self.model_label = tk.Label(model_frame, text="模型选择：", font=(self.defult_font, 12))
+        self.model_label = tk.Label(model_frame, text="模型选择：", font=(self.default_font, 12))
         self.model_label.pack(side=tk.LEFT, pady=5)
         self.model_var = tk.StringVar(value=self.wrda.models[0])
-        self.model_dropdown = ttk.Combobox(model_frame, textvariable=self.model_var, values=self.wrda.models, font=(self.defult_font, 12), state="readonly")
+        self.model_dropdown = ttk.Combobox(model_frame, textvariable=self.model_var, values=self.wrda.models, font=(self.default_font, 12), state="readonly")
         self.model_dropdown.pack(side=tk.LEFT, pady=5, padx=5)
         model_frame.pack(pady=5)
 
         # 绑定方式下拉框
         bind_frame = tk.Frame(frame)
-        bind_label = tk.Label(bind_frame, text="绑定方式：", font=(self.defult_font, 12))
+        bind_label = tk.Label(bind_frame, text="绑定方式：", font=(self.default_font, 12))
         bind_label.pack(side=tk.LEFT, pady=5)
         self.bind_var = tk.StringVar(value="选择窗口")
-        self.bind_dropdown = ttk.Combobox(bind_frame, textvariable=self.bind_var, values=["选择区域", "选择窗口"], font=(self.defult_font, 12), state='readonly')
+        self.bind_dropdown = ttk.Combobox(bind_frame, textvariable=self.bind_var, values=["选择区域", "选择窗口"], font=(self.default_font, 12), state='readonly')
         self.bind_dropdown.pack(side=tk.LEFT, pady=5, padx=5)
         self.bind_dropdown.bind("<<ComboboxSelected>>", self.update_bind_frame)
         bind_frame.pack(pady=5)
 
         # 选择区域部分
         self.region_frame = tk.Frame(frame)
-        select_region_label = tk.Label(self.region_frame, text="点击按钮进行题目截取区域选取：", font=(self.defult_font, 12))
+        select_region_label = tk.Label(self.region_frame, text="点击按钮进行题目截取区域选取：", font=(self.default_font, 12))
         select_region_label.pack(side=tk.LEFT, pady=5)
         select_region_button = tk.Button(self.region_frame, text="选取区域", command=self.select_region)
         select_region_button.pack(side=tk.LEFT, pady=5)
@@ -198,25 +210,25 @@ class WrdaGui:
                                               text="?", 
                                               fg="blue",
                                               relief=tk.FLAT,
-                                              command=lambda: self.show_messages("select_region"))
+                                              command=lambda: self.messager.raise_info("Messages","SelectRegion"))
         select_region_info_button.pack(side=tk.RIGHT, padx=10, pady=5)
         self.region_frame.pack_forget()  # 隐藏region_frame
 
         # 选择窗口部分
         self.window_frame = tk.Frame(frame)
-        select_window_label = tk.Label(self.window_frame, text="点击按钮选择识别窗口：", font=(self.defult_font, 12))
+        select_window_label = tk.Label(self.window_frame, text="点击按钮选择识别窗口：", font=(self.default_font, 12))
         select_window_label.pack(side=tk.LEFT, pady=5)
         select_window_button = tk.Button(self.window_frame, 
                                          text="选择窗口", 
                                          command=self.select_window, 
-                                         font=(self.defult_font, 12))
+                                         font=(self.default_font, 12))
         select_window_button.pack(side=tk.LEFT, pady=5)
 
         select_window_info_button = tk.Button(self.window_frame, 
                                               text="?", 
                                               fg="blue", 
                                               relief=tk.FLAT, 
-                                              command=lambda: self.show_messages(keyword="select_window_"))
+                                              command=lambda: self.messager.raise_info("Messages","SelectWindow"))
         select_window_info_button.pack(side=tk.RIGHT, padx=10, pady=5)
         self.window_frame.pack(pady=5)  # 显示window_frame
 
@@ -259,7 +271,7 @@ class WrdaGui:
                                        text="?", 
                                        fg="blue", 
                                        relief=tk.FLAT,
-                                       command=lambda: self.show_messages("wechat"))
+                                       command=lambda: self.messager.raise_info("Messages","Wechat"))
         wechat_info_button.pack(side=tk.LEFT, pady=5)
 
         # Wechat_OCR设置
@@ -271,7 +283,7 @@ class WrdaGui:
                                            text="?", 
                                            fg="blue", 
                                            relief=tk.FLAT,
-                                           command=lambda: self.show_messages("wechat_ocr"))
+                                           command=lambda: self.messager.raise_info("Messages","WechatOcr"))
         wechat_ocr_info_button.pack(side=tk.LEFT, pady=5)
 
         # Client设置
@@ -339,7 +351,8 @@ class WrdaGui:
     def select_window(self):
         self.wrda.init_screen_catcher()
         if self.wrda.window_sreenshot:
-            self.show_messages("show_screenshot")
+            # 显示截屏区域截图
+            self.messager.raise_picture(self.wrda.window_sreenshot)
 
 
     def answer_question(self,question:str=""):
@@ -348,13 +361,11 @@ class WrdaGui:
         
         本方法从wrda对象获取OCR结果和答案，然后更新UI中的OCR结果文本显示。
         """
-        if not question:
-            # 清空OCR结果
+        if not question:    # question不为空：“发送”按钮被点击
+            # 清空OCR文本框
             self.ocr_result_text.delete(1.0, tk.END)
             # 获取OCR结果和答案
             result : list = self.wrda.answer_question()
-            # 清空OCR结果文本框的现有内容
-            self.ocr_result_text.delete(1.0, tk.END)
             # 向OCR结果文本框中输入新的内容
             self.ocr_result_text.insert(tk.END, result[0])
         else:
@@ -366,41 +377,22 @@ class WrdaGui:
         # 输出AI回答
         self.answer_text.insert(tk.END, result[1])
 
-    # 启用发送按钮
     def enable_send_button(self, event):
+        """
+        启用发送按钮
+        """
         if self.ocr_result_text.get(1.0, tk.END).strip():
             self.send_button.config(state=tk.NORMAL)
         else:
             self.send_button.config(state=tk.DISABLED)
 
-    # 复制AI回答
     def copy_answer(self):
+        """
+        复制AI回答
+        """
         self.root.clipboard_clear()
         self.root.clipboard_append(self.answer_text.get(1.0, tk.END).strip())
-
-    def show_messages(self,keyword:str=""):
-        print("show info:",end="")
-        if keyword in self.message_list:
-            messagebox.showinfo("",message=self.message_list[keyword])
-            print(self.message_list[keyword])
-        elif keyword == "show_screenshot":
-            print("show_screenshot")
-            # 创建一个新的 Toplevel 窗口
-            top = tk.Toplevel(self.root)
-            top.title("窗口截图成功")
-            print("窗口截图成功")
-
-            # 将图片转换为 PhotoImage 对象
-            photo = ImageTk.PhotoImage(self.wrda.window_sreenshot)
-
-            # 创建一个标签来显示图片
-            label = tk.Label(top, image=photo)
-            label.image = photo  # 保持对 PhotoImage 的引用，防止被垃圾回收
-            label.pack()
-        else:
-            print("消息为空")
-                
-
+    
     def add_client(self):
         client_name = simpledialog.askstring("添加Client", "请输入Client名称")
         if client_name:
