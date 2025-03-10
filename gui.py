@@ -1,6 +1,5 @@
 import tkinter as tk
-import os
-from tkinter import ttk, messagebox, simpledialog, scrolledtext
+from tkinter import ttk, messagebox, simpledialog, scrolledtext, filedialog
 from threading import Thread
 from PIL import Image, ImageTk
 
@@ -37,6 +36,12 @@ class WrdaGui:
         self.current_frame = None
         self.current_page = None  # 添加属性来跟踪当前选中的按钮
         self.show_frame("答题")
+
+    """
+        -------------------------------------------------------------------------
+            顶部工具栏
+        -------------------------------------------------------------------------
+    """
 
     def create_toolbar(self):
         """
@@ -101,14 +106,15 @@ class WrdaGui:
                 button.config(relief=tk.SUNKEN)  # 将当前选中的按钮设置为SUNKEN
                 self.current_page = button  # 更新当前选中的按钮
 
+    """
+        -------------------------------------------------------------------------
+            答题页面
+        -------------------------------------------------------------------------
+    """
+
     def create_answer_frame(self):
         """
-        创建包含OCR结果、AI回答及其对应操作按钮的框架
-        
-        此函数负责构建一个框架，该框架包含两个主要部分：
-        1. OCR结果文本框和发送按钮
-        2. AI回答文本框和复制按钮
-        每个文本框都配备了一个功能按钮，且按钮的启用状态取决于文本框内容是否为空
+        答题页面主框架
         """
         # 创建主框架
         frame = tk.Frame(self.root)
@@ -172,11 +178,54 @@ class WrdaGui:
 
         return frame
     
+    def select_region(self):
+        messagebox.showinfo("咕", "这个功能还没做")
+
+    def answer_question(self,question:str=""):
+        """
+        回答问题并更新OCR结果显示。
+        """
+        if not question:    # question不为空：“发送”按钮被点击
+            # 清空OCR文本框
+            self.ocr_result_text.delete(1.0, tk.END)
+            # 获取OCR结果和答案
+            result : list = self.wrda.answer_question()
+            # 向OCR结果文本框中输入新的内容
+            self.ocr_result_text.insert(tk.END, result[0])
+        else:
+            # 发送问题
+            result : list = self.wrda.answer_question(question)
+
+        # 清空AI回答文本框的现有内容
+        self.answer_text.delete(1.0, tk.END)
+        # 输出AI回答
+        self.answer_text.insert(tk.END, result[1])
+
+    def enable_send_button(self, event):
+        """
+        启用发送按钮
+        """
+        if self.ocr_result_text.get(1.0, tk.END).strip():
+            self.send_button.config(state=tk.NORMAL)
+        else:
+            self.send_button.config(state=tk.DISABLED)
+
+    def copy_answer(self):
+        """
+        复制AI回答
+        """
+        self.root.clipboard_clear()
+        self.root.clipboard_append(self.answer_text.get(1.0, tk.END).strip())
+    
+    """
+        -------------------------------------------------------------------------
+            绑定页面
+        -------------------------------------------------------------------------
+    """
+    
     def create_bind_frame(self):
         """
-        创建绑定框架，用于设置绑定方式、选择区域或窗口、以及模型选择。
-        
-        :return: 返回配置好的框架对象。
+        绑定页面主框架
         """
         # 创建主框架
         frame = tk.Frame(self.root)
@@ -243,9 +292,6 @@ class WrdaGui:
     
         参数:
         - event: 触发的事件对象，通常由Tkinter的事件绑定机制传递。
-    
-        返回值:
-        无返回值。
         """
         # 当bind_var的值为"选择区域"时，显示region_frame框架，隐藏window_frame框架
         if self.bind_var.get() == "选择区域":
@@ -256,142 +302,166 @@ class WrdaGui:
             self.region_frame.pack_forget()
             self.window_frame.pack(pady=5)
 
+    def select_window(self):
+        """
+            选择绑定窗口
+        """
+        # 初始化屏幕截图管理器
+        self.wrda.init_screen_catcher()
+        # 存储窗口截图
+        self.wrda.window_sreenshot = self.wrda.screen_catcher.select_window()
+
+        if self.wrda.window_sreenshot:
+            # 显示截屏区域截图
+            self.messager.raise_picture(self.wrda.window_sreenshot)
+
+    """
+        -------------------------------------------------------------------------
+            设置页面
+        -------------------------------------------------------------------------
+    """
+
     def create_settings_frame(self):
+        """
+        设置页面框架
+        """
+        # 创建主框架
         frame = tk.Frame(self.root)
+        frame.pack(pady=10, fill=tk.BOTH, expand=True)
 
-        # App设置
-        app_label = tk.Label(frame, text="App")
-        app_label.pack(pady=5)
-
-        wechat_label = tk.Label(frame, text="微信：")
-        wechat_label.pack(side=tk.LEFT, pady=5)
-        self.wechat_entry = tk.Entry(frame, width=50)
-        self.wechat_entry.pack(side=tk.LEFT, pady=5)
+        # 微信设置
+        wechat_label = tk.Label(frame, text="微信", font=(self.default_font, 12))
+        wechat_label.grid(row=1, column=0, sticky=tk.W, pady=10, padx=15)
+        # 文本框
+        self.wechat_entry = tk.Entry(frame, width=40)
+        self.wechat_entry.grid(row=1, column=1, pady=10, padx=15)
+        self.wechat_entry.insert(0, self.wrda.wechat_path)
+        # 预览按钮
+        preview_button = tk.Button(frame, 
+                                   text="预览", 
+                                   command=lambda: self.path_preview(isfile=True))
+        preview_button.grid(row=1, column=2, pady=10, padx=(0, 5))
+        # 保存按钮
+        save_button = tk.Button(frame, 
+                                text="保存", 
+                                command=self.save_wechat_path)
+        save_button.grid(row=1, column=3, pady=10, padx=(0, 5))
+        # 信息按钮
         wechat_info_button = tk.Button(frame, 
                                        text="?", 
                                        fg="blue", 
                                        relief=tk.FLAT,
                                        command=lambda: self.messager.raise_info("Messages","Wechat"))
-        wechat_info_button.pack(side=tk.LEFT, pady=5)
+        wechat_info_button.grid(row=1, column=4, pady=5, padx=(0, 10))
 
         # Wechat_OCR设置
-        wechat_ocr_label = tk.Label(frame, text="Wechat_OCR：")
-        wechat_ocr_label.pack(side=tk.LEFT, pady=5)
-        self.wechat_ocr_entry = tk.Entry(frame, width=50)
-        self.wechat_ocr_entry.pack(side=tk.LEFT, pady=5)
+        wechat_ocr_label = tk.Label(frame, text="微信OCR", font=(self.default_font, 12))
+        wechat_ocr_label.grid(row=2, column=0, sticky=tk.W, pady=10, padx=15)
+        # 文本框
+        self.wechat_ocr_entry = tk.Entry(frame, width=40)
+        self.wechat_ocr_entry.grid(row=2, column=1, pady=10, padx=15)
+        self.wechat_ocr_entry.insert(0, self.wrda.wechat_ocr_path)
+        preview_ocr_button = tk.Button(frame, 
+                                       text="预览", 
+                                       command=lambda: self.path_preview(isfile=False))
+        preview_ocr_button.grid(row=2, column=2, pady=10, padx=(0, 5))
+        save_ocr_button = tk.Button(frame, 
+                                    text="保存", 
+                                    command=self.save_wechat_ocr_path)
+        save_ocr_button.grid(row=2, column=3, pady=10, padx=(0, 5))
         wechat_ocr_info_button = tk.Button(frame, 
                                            text="?", 
                                            fg="blue", 
                                            relief=tk.FLAT,
                                            command=lambda: self.messager.raise_info("Messages","WechatOcr"))
-        wechat_ocr_info_button.pack(side=tk.LEFT, pady=5)
+        wechat_ocr_info_button.grid(row=2, column=4, pady=10, padx=(0, 10))
 
-        # Client设置
-        client_label = tk.Label(frame, text="Client")
-        client_label.pack(pady=5)
-
-        client_dropdown_label = tk.Label(frame, text="Client：")
-        client_dropdown_label.pack(side=tk.LEFT, pady=5)
-        self.client_var = tk.StringVar()
-        self.client_dropdown = ttk.Combobox(frame, textvariable=self.client_var, values=self.wrda.client.keys())
-        self.client_dropdown.pack(side=tk.LEFT, pady=5)
+        # Client下拉菜单及其相关按钮
+        client_dropdown_label = tk.Label(frame, text="客户端", font=(self.default_font, 12))
+        client_dropdown_label.grid(row=3, column=0, sticky=tk.W, pady=10, padx=15)
+        # 下拉菜单
+        client_names = list(self.wrda.client.keys())
+        self.client_var = tk.StringVar(value=client_names[0])
+        self.client_dropdown = ttk.Combobox(frame, textvariable=self.client_var, values=client_names, width=35, state='readonly')
+        self.client_dropdown.grid(row=3, column=1, pady=10, padx=15)
+        add_client_button = tk.Button(frame, text="编辑", command=self.add_client)
+        add_client_button.grid(row=3, column=2, pady=10, padx=(0, 10))
         add_client_button = tk.Button(frame, text="添加", command=self.add_client)
-        add_client_button.pack(side=tk.LEFT, pady=5)
+        add_client_button.grid(row=3, column=3, pady=10, padx=(0, 10))
+        add_client_info_button = tk.Button(frame, 
+                                           text="?", 
+                                           fg="blue", 
+                                           relief=tk.FLAT,
+                                           command=lambda: self.messager.raise_info("Messages","Clients"))
+        add_client_info_button.grid(row=3, column=4, pady=10, padx=(0, 10))
 
-        secret_id_label = tk.Label(frame, text="SecretId：")
-        secret_id_label.pack(side=tk.LEFT, pady=5)
-        self.secret_id_entry = tk.Entry(frame, width=50)
-        self.secret_id_entry.pack(side=tk.LEFT, pady=5)
-
-        secret_key_label = tk.Label(frame, text="SecretKey：")
-        secret_key_label.pack(side=tk.LEFT, pady=5)
-        self.secret_key_entry = tk.Entry(frame, width=50)
-        self.secret_key_entry.pack(side=tk.LEFT, pady=5)
-
-        save_client_button = tk.Button(frame, text="保存", command=self.save_client)
-        save_client_button.pack(side=tk.LEFT, pady=5)
-
-        # Model设置
-        model_label = tk.Label(frame, text="Model")
-        model_label.pack(pady=5)
-
-        model_dropdown_label = tk.Label(frame, text="Model：")
-        model_dropdown_label.pack(side=tk.LEFT, pady=5)
-        self.model_var = tk.StringVar()
-        self.model_dropdown = ttk.Combobox(frame, textvariable=self.model_var, values=self.wrda.models)
-        self.model_dropdown.pack(side=tk.LEFT, pady=5)
+        # Model下拉菜单及其相关按钮
+        model_dropdown_label = tk.Label(frame, text="模型：", font=(self.default_font, 12))
+        model_dropdown_label.grid(row=4, column=0, sticky=tk.W, pady=5, padx=15)
+        self.model_var = tk.StringVar(value=self.wrda.models[0])
+        self.model_dropdown = ttk.Combobox(frame, textvariable=self.model_var, values=self.wrda.models, width=35)
+        self.model_dropdown.grid(row=4, column=1, pady=5, padx=15)
+        add_model_button = tk.Button(frame, text="删除", command=self.add_model)
+        add_model_button.grid(row=4, column=2, pady=5, padx=(0, 10))
         add_model_button = tk.Button(frame, text="添加", command=self.add_model)
-        add_model_button.pack(side=tk.LEFT, pady=5)
-
-        model_name_label = tk.Label(frame, text="Model Name：")
-        model_name_label.pack(side=tk.LEFT, pady=5)
-        self.model_name_entry = tk.Entry(frame, width=50)
-        self.model_name_entry.pack(side=tk.LEFT, pady=5)
-
-        save_model_button = tk.Button(frame, text="保存", command=self.save_model)
-        save_model_button.pack(side=tk.LEFT, pady=5)
+        add_model_button.grid(row=4, column=3, pady=5, padx=(0, 10))
+        add_model_info_button = tk.Button(frame, 
+                                           text="?", 
+                                           fg="blue", 
+                                           relief=tk.FLAT,
+                                           command=lambda: self.messager.raise_info("Messages","Models"))
+        add_model_info_button.grid(row=4, column=4, pady=5, padx=(0, 10))
 
         return frame
 
-    def create_about_frame(self):
-        frame = tk.Frame(self.root)
-
-        about_label = tk.Label(frame, text="Ciallo～(∠・ω< )⌒★")
-        about_label.pack(pady=5)
-
-        return frame
-
-    def select_region(self):
-        region = simpledialog.askstring("选取区域", "请输入选取区域坐标（例如：x1,y1,x2,y2）")
-        if region:
-            self.region_entry.delete(0, tk.END)
-            self.region_entry.insert(0, region)
-
-    # 选择截图窗口
-    def select_window(self):
-        self.wrda.init_screen_catcher()
-        if self.wrda.window_sreenshot:
-            # 显示截屏区域截图
-            self.messager.raise_picture(self.wrda.window_sreenshot)
-
-
-    def answer_question(self,question:str=""):
+    def path_preview(self,isfile:bool=True) -> None:
         """
-        回答问题并更新OCR结果显示。
-        
-        本方法从wrda对象获取OCR结果和答案，然后更新UI中的OCR结果文本显示。
+        预览文件/文件夹路径，并将路径填写到相应的对话框中
+
+        isfile: True 为预览文件路径，False 为预览文件夹路径
         """
-        if not question:    # question不为空：“发送”按钮被点击
-            # 清空OCR文本框
-            self.ocr_result_text.delete(1.0, tk.END)
-            # 获取OCR结果和答案
-            result : list = self.wrda.answer_question()
-            # 向OCR结果文本框中输入新的内容
-            self.ocr_result_text.insert(tk.END, result[0])
+        if isfile:
+            folder_path = filedialog.askdirectory()
+            if folder_path:
+                self.wechat_entry.delete(0, tk.END)
+                self.wechat_entry.insert(0, folder_path)
         else:
-            # 发送问题
-            result : list = self.wrda.answer_question(question)
-
-        # 清空AI回答文本框的现有内容
-        self.answer_text.delete(1.0, tk.END)
-        # 输出AI回答
-        self.answer_text.insert(tk.END, result[1])
-
-    def enable_send_button(self, event):
+            file_path = filedialog.askopenfilename()
+            if file_path:
+                self.wechat_ocr_entry.delete(0, tk.END)
+                self.wechat_ocr_entry.insert(0, file_path)
+    def save_wechat_path(self):
         """
-        启用发送按钮
+        保存wechat_entry中的路径到self.wrda.wechat_path。
         """
-        if self.ocr_result_text.get(1.0, tk.END).strip():
-            self.send_button.config(state=tk.NORMAL)
+        folder_path = self.wechat_entry.get().strip()
+        if folder_path:
+            self.wrda.wechat_path = folder_path
+            messagebox.showinfo("保存成功", f"微信路径已保存为: {folder_path}")
         else:
-            self.send_button.config(state=tk.DISABLED)
+            messagebox.showerror("错误", "请填写有效的文件夹路径")
 
-    def copy_answer(self):
+    def save_wechat_ocr_path(self):
         """
-        复制AI回答
+        保存wechat_ocr_entry中的路径到self.wrda.wechat_ocr_path。
         """
-        self.root.clipboard_clear()
-        self.root.clipboard_append(self.answer_text.get(1.0, tk.END).strip())
+        folder_path = self.wechat_ocr_entry.get().strip()
+        if folder_path:
+            self.wrda.wechat_ocr_path = folder_path
+            messagebox.showinfo("保存成功", f"微信OCR路径已保存为: {folder_path}")
+        else:
+            messagebox.showerror("错误", "请填写有效的文件夹路径")
+
+    def save_wechat_path(self):
+        """
+        保存wechat_entry中的路径到self.wrda.wechat_path。
+        """
+        folder_path = self.wechat_entry.get().strip()
+        if folder_path:
+            self.wrda.wechat_path = folder_path
+            messagebox.showinfo("保存成功", f"微信路径已保存为: {folder_path}")
+        else:
+            messagebox.showerror("错误", "请填写有效的文件夹路径")
     
     def add_client(self):
         client_name = simpledialog.askstring("添加Client", "请输入Client名称")
@@ -424,6 +494,20 @@ class WrdaGui:
             messagebox.showinfo("保存成功", f"Model {model_name} 已保存")
         else:
             messagebox.showerror("错误", "请填写所有字段")
+
+    """
+        -------------------------------------------------------------------------
+            关于页面
+        -------------------------------------------------------------------------
+    """
+
+    def create_about_frame(self):
+        frame = tk.Frame(self.root)
+
+        about_label = tk.Label(frame, text="Ciallo～(∠・ω< )⌒★")
+        about_label.pack(pady=5)
+
+        return frame
 
     def show_about(self):
         messagebox.showinfo("关于", "WeRead Daily Question Assistant\n版本: 1.0\n作者: 你的名字")

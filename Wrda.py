@@ -2,7 +2,10 @@ import os
 import json
 import time
 import re
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog, scrolledtext, filedialog
 from wechat_ocr.ocr_manager import OcrManager, OCR_MAX_TASK_ID
+from PIL import Image
 
 from module import QueryLLM
 from module import CatchScreen
@@ -17,15 +20,20 @@ class Config():
     prompts : dict = {}
     matcher : str = ""
     regular : bool = False
+    window_sreenshot = Image
 
     def __init__(self,root,config_name="Wrda"):        
-        config_path = os.path.join(os.path.dirname(__file__),"config",config_name+".json")
-        # 加载配置
-        self.load_config(config_path)
+        self.config_path = os.path.join(os.path.dirname(__file__),"config",config_name+".json")
         # 配置信使
         self.messager = Messager(root)
-        # 自检
-        self.check_config()
+
+        if self.config_path :
+            # 加载配置
+            self.load_config(self.config_path)
+            # 自检
+            self.check_config()
+        else:
+            self.messager.raise_info("Error","ConfigNotFound")
 
     def load_config(self,config_path=""):
         with open(config_path,"r",encoding="utf-8") as f:
@@ -52,6 +60,89 @@ class Config():
             self.messager.raise_info("Error","ModelNotFound")
         elif callback:
             self.messager.raise_info("Messages","Checked")
+    
+    def save_config(self, key: str, value: list):
+        """
+        根据传入的key和value更新配置文件。
+
+        参数:
+        - key (str): 配置项的键。
+        - value: 配置项的新值。
+        """
+        with open(self.config_path, "r", encoding="utf-8") as f:
+            config = json.load(f)
+
+        # 更新配置项
+        if key == "WeChat":
+            new_path = value[0]
+            if not os.path.exists(new_path) or not os.path.isdir(new_path):
+                self.messager.raise_info("Error", "InvalidPath")
+                return
+            config['App']['wechat_dir'] = new_path
+        elif key == "WeChatOCR":
+            new_path = value[0]
+            if not os.path.exists(new_path) or not os.path.isfile(new_path):
+                self.messager.raise_info("Error", "InvalidPath")
+                return
+            config['App']['wechat_ocr_dir'] = new_path
+        elif key == "Client":
+            """
+            客户端更新
+            value = [*client name*, *secret id*, *secret key*]
+            """
+            if value[0] in self.client:  
+                # 若为真则是编辑已有的client
+                config['Client'][value[0]]['secret_id'] = value[1]   
+                config['Client'][value[0]]['secret_key'] = value[2]  
+            else:
+                # 若为假则是添加新的client
+                config['Client'][value[0]] = {
+                    'secret_id': value[1],
+                    'secret_key': value[2]
+                }
+        elif key == "Models":
+            """
+            模型更新
+            value = [*command*, *old name*, *new name*]
+            """
+            command = value[0]
+            if command == "add":    # 新增操作
+                # 将value[2]的值追加进config
+                if value[2] not in config['Models']:
+                    config['Models'].append(value[2])
+                else:
+                    self.messager.raise_info("Error", "ModelAlreadyExists")
+            elif command == "edit": # 修改操作
+                # 获取value[1]在config中的索引，将其改为value[2]
+                if value[1] in config['Models']:
+                    index = config['Models'].index(value[1])
+                    config['Models'][index] = value[2]
+                else:
+                    self.messager.raise_info("Error", "ModelNotFound")
+            elif command == "delete":
+                # 删除config中的value[1]
+                if value[1] in config['Models']:
+                    config['Models'].remove(value[1])
+                else:
+                    self.messager.raise_info("Error", "ModelNotFound")
+            else:
+                self.messager.raise_info("Error", "InvalidCommand")
+        else:
+            self.messager.raise_info("Error", "InvalidKey")
+            return
+
+        # 写回配置文件
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=4)
+
+        # 更新内部属性
+        self.load_config(self.config_path)
+
+        # 提示保存成功
+        self.messager.raise_info("Messages", "Saved")
+
+        # 自检
+        self.check_config(callback=False)
 
 
 class WeReadDailyquestionAssistant(Config):
@@ -150,8 +241,6 @@ class WeReadDailyquestionAssistant(Config):
     def init_screen_catcher(self):
         print("初始化screen_catche...")
         self.screen_catcher = CatchScreen.ScreenCatcher()
-        # 存储窗口截图
-        self.window_sreenshot = self.screen_catcher.select_window()
 
 
     def answer_question(self, question: str = None) -> list:
@@ -222,3 +311,7 @@ if __name__ == "__main__":
     # self = Config()
     # print(os.getenv(self.client["tencent_cloud"]["secret_id"]))
     print("hello")
+    root = tk.Tk()
+    wrda = WeReadDailyquestionAssistant(root)
+    client =list(wrda.client.keys())
+    print(client[0])
