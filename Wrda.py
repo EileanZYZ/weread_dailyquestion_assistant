@@ -6,7 +6,7 @@ from wechat_ocr.ocr_manager import OcrManager, OCR_MAX_TASK_ID
 
 from module import QueryLLM
 from module import CatchScreen
-from module import RaiseInfo
+from module.RaiseInfo import Messager
 
 
 class Config():
@@ -18,14 +18,16 @@ class Config():
     matcher : str = ""
     regular : bool = False
 
-    def __init__(self,config_name="Wrda"):        
+    def __init__(self,root,config_name="Wrda"):        
         config_path = os.path.join(os.path.dirname(__file__),"config",config_name+".json")
         # 加载配置
-        self.config(config_path)
+        self.load_config(config_path)
+        # 配置信使
+        self.messager = Messager(root)
         # 自检
-        self.check()
+        self.check_config()
 
-    def config(self,config_path=""):
+    def load_config(self,config_path=""):
         with open(config_path,"r",encoding="utf-8") as f:
             config = json.load(f)
             self.wechat_path = config['App']['wechat_dir']
@@ -35,30 +37,32 @@ class Config():
             self.prompts = config['Prompts']
             self.matcher = config['Filter']
 
-    def check(self):
+    def check_config(self,callback:bool=False):
         # 检查微信路径
         if not os.path.exists(self.wechat_path):
-            raise RaiseInfo.RaiseInfo("Error","PathNotFound")
+            self.messager.raise_info("Error","PathNotFound")
         # 检查WeChatOcr路径
         if not os.path.exists(self.wechat_ocr_path):
-            raise RaiseInfo.RaiseInfo("Error","WechatOcr")
+            self.messager.raise_info("Error","WechatOcr")
         # 检查客户端
         if not self.client:
-            raise RaiseInfo.RaiseInfo("Error","ClientNotFound")
+            self.messager.raise_info("Error","ClientNotFound")
         # 检查模型
         if not self.models:
-           raise RaiseInfo.RaiseInfo("Error","ModelNotFound")
-        else:
-            raise
+            self.messager.raise_info("Error","ModelNotFound")
+        elif callback:
+            self.messager.raise_info("Messages","Checked")
 
 
 class WeReadDailyquestionAssistant(Config):
     ocr_result : str = ""
 
-    def __init__(self,config_name="Wrda"):
-        super().__init__(config_name)
+    def __init__(self,root):
+        super().__init__(root) # 加载配置
+
         # 启动OCR
         self.init_ocr_manager()
+
         # 启动大模型
         self.init_llm()
 
@@ -145,7 +149,7 @@ class WeReadDailyquestionAssistant(Config):
     # 初始化窗口截图器并选择目标窗口
     def init_screen_catcher(self):
         print("初始化screen_catche...")
-        self.screen_catcher = ScreenCatch.ScreenCatcher()
+        self.screen_catcher = CatchScreen.ScreenCatcher()
         # 存储窗口截图
         self.window_sreenshot = self.screen_catcher.select_window()
 
