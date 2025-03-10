@@ -2,10 +2,11 @@ import os
 import json
 import time
 import re
-
 from wechat_ocr.ocr_manager import OcrManager, OCR_MAX_TASK_ID
+
 from module import QueryLLM
 from module import ScreenCatch
+from module import RaiseInfo
 
 
 class Config():

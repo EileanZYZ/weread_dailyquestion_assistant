@@ -5,6 +5,7 @@ from threading import Thread
 from PIL import Image, ImageTk
 
 import Wrda
+from module import RaiseInfo
 
 class WrdaGui:
     defult_font :str = "Microsoft YaHei"
