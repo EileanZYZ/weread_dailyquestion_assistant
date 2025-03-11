@@ -15,7 +15,7 @@ from module.RaiseInfo import Messager
 class Config():
     wechat_path : str = ""
     wechat_ocr_path : str = ""
-    client : dict = {}
+    clients : dict = {}
     models : list = []
     prompts : dict = {}
     matcher : str = ""
@@ -40,7 +40,7 @@ class Config():
             config = json.load(f)
             self.wechat_path = config['App']['wechat_dir']
             self.wechat_ocr_path = config['App']['wechat_ocr_dir']
-            self.client = config['Client']
+            self.clients = config['Client']
             self.models = config['Models']
             self.prompts = config['Prompts']
             self.matcher = config['Filter']
@@ -53,7 +53,7 @@ class Config():
         if not os.path.exists(self.wechat_ocr_path):
             self.messager.raise_info("Error","WechatOcr")
         # 检查客户端
-        if not self.client:
+        if not self.clients:
             self.messager.raise_info("Error","ClientNotFound")
         # 检查模型
         if not self.models:
@@ -61,13 +61,19 @@ class Config():
         elif callback:
             self.messager.raise_info("Messages","Checked")
     
-    def save_config(self, key: str, value: list):
+    def save_config(self, key: str, value: list) -> bool:
         """
         根据传入的key和value更新配置文件。
 
         参数:
         - key (str): 配置项的键。
         - value: 配置项的新值。
+            -key-       -value-
+            WeChat      [*wechat_dir*]
+            WeChatOCR   [*wechat_ocr_dir*]
+            Client      [*client name*, *secret id*, *secret key*]
+            Models      [*command*, *old name*, *new name*]
+
         """
         with open(self.config_path, "r", encoding="utf-8") as f:
             config = json.load(f)
@@ -76,34 +82,44 @@ class Config():
         if key == "WeChat":
             new_path = value[0]
             if not os.path.exists(new_path) or not os.path.isdir(new_path):
-                self.messager.raise_info("Error", "InvalidPath")
-                return
+                self.messager.raise_info("Error", "InvalidPath")    # 提示路径错误
+                return False
             config['App']['wechat_dir'] = new_path
+
         elif key == "WeChatOCR":
             new_path = value[0]
             if not os.path.exists(new_path) or not os.path.isfile(new_path):
                 self.messager.raise_info("Error", "InvalidPath")
-                return
+                return False
             config['App']['wechat_ocr_dir'] = new_path
+
         elif key == "Client":
             """
             客户端更新
-            value = [*client name*, *secret id*, *secret key*]
+            value = [*command*, *client name*, *secret id*, *secret key*]
+
+            command list = ["add", "edit", "delete"]
             """
-            if value[0] in self.client:  
-                # 若为真则是编辑已有的client
-                config['Client'][value[0]]['secret_id'] = value[1]   
-                config['Client'][value[0]]['secret_key'] = value[2]  
-            else:
-                # 若为假则是添加新的client
-                config['Client'][value[0]] = {
-                    'secret_id': value[1],
-                    'secret_key': value[2]
+            if value[0] == "edit":  
+                # 编辑已有的client
+                config['Client'][value[1]]['secret_id'] = value[2]   
+                config['Client'][value[1]]['secret_key'] = value[3]  
+            elif value[0] == "add":
+                # 添加新的client
+                config['Client'][value[1]] = {
+                    'secret_id': value[2],
+                    'secret_key': value[3]
                 }
+            elif value[0] == "delete":
+                # 删除已有的client
+                del config['Client'][value[1]]
+
         elif key == "Models":
             """
             模型更新
             value = [*command*, *old name*, *new name*]
+
+            command list = ["add", "delete", "rename"]
             """
             command = value[0]
             if command == "add":    # 新增操作
@@ -112,6 +128,7 @@ class Config():
                     config['Models'].append(value[2])
                 else:
                     self.messager.raise_info("Error", "ModelAlreadyExists")
+                    return False
             elif command == "edit": # 修改操作
                 # 获取value[1]在config中的索引，将其改为value[2]
                 if value[1] in config['Models']:
@@ -119,17 +136,20 @@ class Config():
                     config['Models'][index] = value[2]
                 else:
                     self.messager.raise_info("Error", "ModelNotFound")
+                    return False
             elif command == "delete":
                 # 删除config中的value[1]
                 if value[1] in config['Models']:
                     config['Models'].remove(value[1])
                 else:
                     self.messager.raise_info("Error", "ModelNotFound")
+                    return False
             else:
                 self.messager.raise_info("Error", "InvalidCommand")
+                return False
         else:
             self.messager.raise_info("Error", "InvalidKey")
-            return
+            return False
 
         # 写回配置文件
         with open(self.config_path, "w", encoding="utf-8") as f:
@@ -143,6 +163,8 @@ class Config():
 
         # 自检
         self.check_config(callback=False)
+
+        return True
 
 
 class WeReadDailyquestionAssistant(Config):
@@ -215,8 +237,8 @@ class WeReadDailyquestionAssistant(Config):
         print("正在初始化大模型...",end="")
         # print("确认密钥 \n SecretId:" + os.getenv(self.client["tencent_cloud"]["secret_id"])
             #   + "\n SecretKey:" + os.getenv(self.client["tencent_cloud"]["secret_key"]))
-        self.llm = QueryLLM.tencentLLM(os.getenv(self.client["tencent_cloud"]["secret_id"]), 
-                                       os.getenv(self.client["tencent_cloud"]["secret_key"]))
+        self.llm = QueryLLM.tencentLLM(os.getenv(self.clients["tencent_cloud"]["secret_id"]), 
+                                       os.getenv(self.clients["tencent_cloud"]["secret_key"]))
         print("完成")
     
     # prompt生成
@@ -313,5 +335,5 @@ if __name__ == "__main__":
     print("hello")
     root = tk.Tk()
     wrda = WeReadDailyquestionAssistant(root)
-    client =list(wrda.client.keys())
+    client =list(wrda.clients.keys())
     print(client[0])
