@@ -149,12 +149,13 @@ class Config():
 
 class WeReadDailyquestionAssistant(Config):
     ocr_result : str = ""   # ocr结果
-    ocr_activated : bool = False    # 是否开启ocr
-    llm_initialized : bool = False  # 是否初始化llm
     window_sreenshot = Image    # 窗口截图
     selected_model :str = ""    # 绑定的模型
     selected_client : dict = "" # 绑定的客户端
     regular : bool = False  # 是否使用正则过滤
+    ocr_activated : bool = False    # 是否开启ocr
+    llm_initialized : bool = False  # 是否初始化llm
+    screen_catcher_initialized : bool = False   # 是否初始化截图器
 
     def __init__(self,root):
         super().__init__(root) # 加载配置
@@ -165,6 +166,7 @@ class WeReadDailyquestionAssistant(Config):
         """
         print("初始化screen_catche...")
         self.screen_catcher = CatchScreen.ScreenCatcher()
+        self.screen_catcher_initialized = True
 
 
     def init_ocr_manager(self):
@@ -254,7 +256,7 @@ class WeReadDailyquestionAssistant(Config):
                 self.llm_initialized = True
                 self.messager.raise_info("Messages","BindSuccess")
             else:
-                self.messager.raise_info("Messages","ClientNotFound")
+                self.messager.raise_info("Error","ClientNotFound")
         except Exception as e:
             # 弹出错误窗口
             self.messager.raise_info("Error", "MissModel")
@@ -268,18 +270,19 @@ class WeReadDailyquestionAssistant(Config):
         目前只能保证腾讯云混元服务的格式是对的
         等我大模型学扎实了再来改改
         """
-
-        params = {
-        "Model": self.selected_model,
-        "Messages": []
-        }
-        # 添加system Role
-        if self.system_call[misson]:
-            params["Messages"].append({"Role": "system","Content": self.system_call[misson]})
-        # 添加user Role
-        params["Messages"].append({"Role": "user","Content": prompt})
-        # print(params)
-
+        if not self.selected_model:
+            params = {
+            "Model": self.selected_model,
+            "Messages": []
+            }
+            # 添加system Role
+            if self.system_call[misson]:
+                params["Messages"].append({"Role": "system","Content": self.system_call[misson]})
+            # 添加user Role
+            params["Messages"].append({"Role": "user","Content": prompt})
+            # print(params)
+        else:
+            self.messager.raise_info("Error","MissModel")
         return params
     
     def answer_question(self, question:str=None, mission:str="a") -> list:
@@ -298,8 +301,8 @@ class WeReadDailyquestionAssistant(Config):
         mission_list : list = ["a","r"]
 
         # 检查：大模型是否已经初始化完成？截图区域已绑定？
-        if (not self.llm_initialized) and (not self.selected_model) and (not self.screen_catcher.target_window):
-            self.messager.raise_confirm("Error","DidNotInitService")
+        if (not self.llm_initialized) and (not self.selected_model) and (not self.screen_catcher_initialized):
+            self.messager.raise_info("Error","DidNotInitService")
 
         # 判断：是否为直接识别图片并询问大模型？
         if question is None:
