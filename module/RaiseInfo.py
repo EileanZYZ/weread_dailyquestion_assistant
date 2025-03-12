@@ -9,6 +9,7 @@ class Messager:
         "Messages" : {
             # 消息
 		    "Saved" : "保存成功",
+            "PathSaved" : "路径保存成功，请重启程序后再连接OCR",
             "Checked" : "自检完成",
             # 窗口提示
             "Wechat" : "在微信程序目录下，定位到一个名称为版本号的文件夹中",
@@ -18,7 +19,9 @@ class Messager:
             "AnswerQuestion" : "现在“绑定”页面选择截图识别的窗口/区域，再点击“答题”开始提问大模型\n如果识别结果大模型无法回答，可在人工编辑后点“发送”再次提问\n提问前，请确认所有设置均正确",
             "Clients" : "目前只能保证支持腾讯云的混元大模型",
             "Models" : "填写你申请到的模型名称，具体请参考云服务的相关文档\n如果您申请了腾讯云，那么预设的hunyuan-lite在您于云端开通了混元大模型服务后应该可以直接用",
-            "SetClient": "请优先选择腾讯云（tencent could）避免出现不可知的错误\n为了您的安全，请将SecretId和SecretKey保存在环境变量中，并在此填写相应的环境变量名"
+            "SetClient": "请优先选择腾讯云（tencent could）避免出现不可知的错误\n为了您的安全，请将SecretId和SecretKey保存在环境变量中，并在此填写相应的环境变量名",
+            "BindingCleared" : "由于被绑定的客户端/模型被修改/删除，请重新绑定",
+            "BindSuccess" : "绑定成功"
         },
         "Error" : {
             "PathNotFound" : "找不到微信/微信OCR程序目录\n可能是由于微信更新，请重新设置路径",
@@ -32,14 +35,15 @@ class Messager:
             "InvalidCommand" : "非法指令",
             "EmptyValue" : "属性有空\n请确认填写完成所有字段",
             "QuestionEmpty" : "问题为空",
-            "DidNotInitService" : "服务未初始化\n请前往“绑定界面”，完成客户端、模型和识别区域的绑定后再开始答题"
+            "DidNotInitService" : "服务未初始化\n请前往“绑定界面”，完成客户端、模型和识别区域的绑定后再开始答题",
+            "BindFailed" : "绑定失败\n请确认客户端和模型各字段有效"
         }
     }
 
     def __init__(self, root):
         self.root = root
 
-    def raise_info(self,type:str="",keyword:str=None,parent=None) -> None:
+    def raise_info(self,type:str="",keyword:str=None,parent:tk.Toplevel=None) -> None:
         # print("show info:",end="")
         if type == "Messages":
             if keyword in self.info_list[type]:
@@ -75,7 +79,7 @@ class Messager:
         label.image = photo  # 保持对 PhotoImage 的引用，防止被垃圾回收
         label.pack()
 
-    def locate_window(self,window,parent):
+    def locate_window(self,window,parent,c_width:int=0,c_height:int=0):
         # 计算子窗口的位置，使其居中显示在父窗口上方
         parent_x = parent.winfo_rootx()
         parent_y = parent.winfo_rooty()
@@ -83,8 +87,8 @@ class Messager:
         parent_height = parent.winfo_height()
 
         # 计算位置
-        x = parent_x + (parent_width) // 2
-        y = parent_y + (parent_height) // 2
+        x = parent_x + (parent_width - c_width) // 2
+        y = parent_y + (parent_height - c_height) // 2
 
         window.geometry(f"+{x}+{y}")
 
@@ -97,7 +101,7 @@ class Messager:
         confirm_window.transient(self.root)  # 使对话框成为父窗口的子窗口
 
         # 确定窗口位置
-        self.locate_window(confirm_window,self.root)
+        self.locate_window(confirm_window,self.root,c_width=400,c_height=200)
 
         # 创建标签
         label = tk.Label(confirm_window, text="确认执行此操作？", font=("Microsoft YaHei", 12))

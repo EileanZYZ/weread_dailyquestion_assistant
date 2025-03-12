@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, scrolledtext, filedialog
 from threading import Thread
 from PIL import Image, ImageTk
-
+import webbrowser
 import Wrda
 from module import RaiseInfo
 
@@ -120,12 +120,12 @@ class WrdaGui:
         frame = tk.Frame(self.root)
 
         # 第 0 行
-        # 自检按钮
-        answer_check_button = tk.Button(frame,
-                                        text="自检", 
-                                        command=lambda: self.wrda.check_config(callback=True),
-                                        width=3, height=1)
-        answer_check_button.grid(row=0, column=0, padx=5, pady=5,sticky="nw")
+        # 链接OCR按钮
+        self.ocr_manager_botton = tk.Button(frame,
+                                            text="连接OCR", 
+                                            command=self.wrda.init_ocr_manager,
+                                            width=10, height=1)
+        self.ocr_manager_botton.grid(row=0, column=0, padx=5, pady=5,sticky="nw")
         # 识别按钮
         answer_recognaize_button = tk.Button(frame,
                                              text="识别", 
@@ -249,7 +249,7 @@ class WrdaGui:
         """
         self.root.clipboard_clear()
         self.root.clipboard_append(entry.get(1.0, tk.END).strip())
-    
+       
     """
         -------------------------------------------------------------------------
             绑定页面
@@ -268,7 +268,8 @@ class WrdaGui:
         client_binding_label.grid(row=0, column=0, pady=10, padx=15, sticky="nw")
         # 下拉菜单
         client_names = list(self.wrda.clients.keys())
-        self.client_binding_drop_var = tk.StringVar(value=client_names[0])
+        self.client_binding_drop_var = tk.StringVar()
+        self.client_binding_drop_var.set(client_names[0] if client_names else "")
         self.client_binding_dropdown = ttk.Combobox(frame, 
                                                     textvariable=self.client_binding_drop_var, 
                                                     values=client_names,
@@ -294,9 +295,16 @@ class WrdaGui:
         # 选中事件
         self.model_binding_dropdown.bind("<<ComboboxSelected>>", self.update_binding_model)
 
+        # 客户端-模型绑定
+        client_model_bind_button = tk.Button(frame, text="确认绑定", 
+                                             command=self.wrda.init_llm,
+                                             font=(self.default_font, 12), 
+                                             width=20)
+        client_model_bind_button.grid(row=2, column=1, pady=10, padx=15)
+
         # 绑定方式下拉框
         method_binding_label = tk.Label(frame, text="绑定方式：", font=(self.default_font, 12))
-        method_binding_label.grid(row=2, column=0, pady=10, padx=15, sticky="nw")
+        method_binding_label.grid(row=3, column=0, pady=10, padx=15, sticky="nw")
         # 下拉菜单
         self.method_binding_var = tk.StringVar(value="选择窗口")
         self.method_binding_dropdown = ttk.Combobox(frame, 
@@ -305,7 +313,7 @@ class WrdaGui:
                                                     font=(self.default_font, 12), 
                                                     width=35,
                                                     state='readonly')
-        self.method_binding_dropdown.grid(row=2, column=1, pady=10, padx=15)
+        self.method_binding_dropdown.grid(row=3, column=1, pady=10, padx=15)
         # 选中事件
         self.method_binding_dropdown.bind("<<ComboboxSelected>>", self.update_binding_method)
 
@@ -323,7 +331,7 @@ class WrdaGui:
                                                 relief=tk.FLAT,
                                                 command=lambda: self.messager.raise_info("Messages","SelectRegion"))
         region_binding_info_button.grid(row=0, column=2, pady=10, padx=15)
-        self.region_binding_frame.grid(row=3, column=0, columnspan=2, pady=5, padx=15, sticky="nsew")  # 使用grid布局
+        self.region_binding_frame.grid(row=4, column=0, columnspan=2, pady=5, padx=15, sticky="nsew")  # 使用grid布局
 
         # 选择窗口部分
         self.window_binding_frame = tk.Frame(frame)
@@ -342,7 +350,7 @@ class WrdaGui:
                                             relief=tk.FLAT, 
                                             command=lambda: self.messager.raise_info("Messages","SelectWindow"))
         window_binding_info_button.grid(row=0, column=2, pady=10, padx=15)
-        self.window_binding_frame.grid(row=3, column=0, columnspan=2, pady=5, padx=15, sticky="nsew")  # 使用grid布局
+        self.window_binding_frame.grid(row=4, column=0, columnspan=2, pady=5, padx=15, sticky="nsew")  # 使用grid布局
 
         # 初始化绑定客户端&模型
         self.update_binding_client(None)
@@ -359,12 +367,9 @@ class WrdaGui:
         self.wrda.selected_client = self.client_binding_drop_var.get()
         
         # 获取模型名
-        models = self.wrda.clients[self.wrda.selected_client].get("Models", [])
+        models = self.wrda.clients[self.wrda.selected_client].get("Models", []) if self.wrda.selected_client else []
         self.model_binding_drop_var.set(models[0] if models else "")
         self.model_binding_dropdown["values"] = models
-
-        # 初始化大模型
-        self.wrda.init_llm()
 
     def update_binding_model(self,event):
         """
@@ -403,6 +408,11 @@ class WrdaGui:
         if self.wrda.window_sreenshot:
             # 显示截屏区域截图
             self.messager.raise_picture(self.wrda.window_sreenshot)
+
+    def clear_binding(self):
+        self.wrda.selected_client = ""
+        self.wrda.selected_model = ""
+        self.messager.raise_info("Message","BindingCleared")
 
     """
         -------------------------------------------------------------------------
@@ -473,7 +483,8 @@ class WrdaGui:
         client_setting_label.grid(row=3, column=0, sticky=tk.W, pady=10, padx=15)
         # 下拉菜单
         client_names = list(self.wrda.clients.keys())
-        self.client_setting_drop_var = tk.StringVar(value=client_names[0])
+        self.client_setting_drop_var = tk.StringVar()
+        self.client_setting_drop_var.set(client_names[0] if client_names else "")
         self.client_setting_dropdown = ttk.Combobox(frame, 
                                                     textvariable=self.client_setting_drop_var, 
                                                     values=client_names, 
@@ -548,7 +559,7 @@ class WrdaGui:
         client = self.client_setting_drop_var.get()
 
         # 获取模型名
-        models = self.wrda.clients[client].get("Models", [])
+        models = self.wrda.clients[client].get("Models", []) if client else []
         self.model_setting_drop_var.set(models[0] if models else "")
         self.model_setting_dropdown["values"] = models
     
@@ -558,7 +569,8 @@ class WrdaGui:
         """
         file_path = self.wechat_setting_entry.get().strip()   # 获取wechat_entry中的路径
         if file_path:
-            self.wrda.save_config(key="Wechat", value=[file_path])
+            if self.wrda.save_config(key="WeChat", value=[file_path]):
+                self.messager.raise_info(type="Messages", keyword="PathSaved")
         else:
             self.messager.raise_info(type="Error", keyword="InvalidPath")
 
@@ -568,7 +580,8 @@ class WrdaGui:
         """
         folder_path = self.wechat_ocr_setting_entry.get().strip()
         if folder_path:
-            self.wrda.save_config(key="WeChatOCR", value=[folder_path])
+            if self.wrda.save_config(key="WeChatOCR", value=[folder_path]):
+                self.messager.raise_info(type="Messages", keyword="PathSaved")
         else:
             self.messager.raise_info(type="Error", keyword="InvalidPath")    
 
@@ -583,7 +596,7 @@ class WrdaGui:
         set_client_window = tk.Toplevel(self.root)
         set_client_window.title(title[command])  # 设置窗口标题
         set_client_window.geometry("700x250")
-        self.messager.locate_window(set_client_window, self.root)
+        self.messager.locate_window(set_client_window, self.root, c_width=700, c_height=250)
 
         client_name = ""
         secret_id = ""
@@ -625,7 +638,8 @@ class WrdaGui:
             # 删除按钮
             delete_button = tk.Button(set_client_window, text="删除", 
                                     command=lambda: self.save_client(window=set_client_window, 
-                                                                     client_name=client_name_entry.get(), 
+                                                                     old_name=self.client_setting_drop_var.get(),
+                                                                     new_name="", 
                                                                      secret_id=secret_id_entry.get(), 
                                                                      secret_key=secret_key_entry.get(),
                                                                      command="delete"))
@@ -633,10 +647,11 @@ class WrdaGui:
 
         # 保存按钮
         save_button = tk.Button(set_client_window, text="保存", 
-                                command=lambda: self.save_client(set_client_window, 
-                                                                 client_name_entry.get(), 
-                                                                 secret_id_entry.get(), 
-                                                                 secret_key_entry.get(),
+                                command=lambda: self.save_client(window=set_client_window, 
+                                                                 old_name=self.client_setting_drop_var.get(),
+                                                                 new_name=client_name_entry.get(), 
+                                                                 secret_id=secret_id_entry.get(), 
+                                                                 secret_key=secret_key_entry.get(),
                                                                  command=command))
         save_button.grid(row=3, column=1, padx=10, pady=10)
 
@@ -644,7 +659,7 @@ class WrdaGui:
         cancel_button = tk.Button(set_client_window, text="取消", command=set_client_window.destroy)
         cancel_button.grid(row=3, column=2, padx=10, pady=10)
 
-    def save_client(self, window,client_name, secret_id, secret_key, command):
+    def save_client(self, window:tk.Toplevel,old_name:str, new_name:str, secret_id:str, secret_key:str, command:str):
         """
         保存客户端信息
         """
@@ -652,22 +667,39 @@ class WrdaGui:
 
         state : bool = False
         if command == "add" or command == "edit":
-            if client_name and secret_id and secret_key: # 需三个都不为空
+            if new_name and secret_id and secret_key: # 需三个都不为空
                 # 保存
-                state = self.wrda.save_config(key="Client",
-                                              value=[command,client_name,secret_id,secret_key])
+                state = self.wrda.save_config(key="Clients",
+                                              value=[command,old_name,new_name,secret_id,secret_key])
                 if state:
+                    # 提示保存成功
+                    self.messager.raise_info("Messages", "Saved", parent=window)
                     # 更新下拉菜单
-                    self.client_setting_drop_var.set(client_name)
+                    self.client_setting_drop_var.set(new_name)
                     self.client_setting_dropdown["values"] = list(self.wrda.clients.keys())
+                    # 更新模型下拉框
+                    self.update_setting_models(None)
                     window.destroy()
             else:
                 self.messager.raise_info(type="Error", keyword="EmptyValue",parent=window)
         elif command == "delete":
             confirm = self.messager.raise_confirm(parent=window)
-            if confirm:
-                self.wrda.save_config(key="Client",
-                                      value=[command,client_name,secret_id,secret_key])
+            if confirm: # 确认删除
+                state = self.wrda.save_config(key="Clients",
+                                              value=[command,old_name,new_name,secret_id,secret_key])
+                if state:
+                    # 提示保存成功
+                    self.messager.raise_info("Messages", "Saved", parent=window)
+                    # 更新下拉菜单
+                    self.client_setting_drop_var.set(new_name)
+                    self.client_setting_dropdown["values"] = list(self.wrda.clients.keys())
+                    # 更新模型下拉框
+                    self.model_setting_drop_var.set("")
+                    self.model_setting_dropdown["values"] = []
+                    if old_name == self.wrda.selected_client: # 删除的客户端正好是目前绑定的
+                        self.clear_binding()
+                    window.destroy()
+                    
 
 
     def raise_model_setting(self,command:str="add"):
@@ -680,13 +712,15 @@ class WrdaGui:
             "add":"添加模型",
             "edit":"编辑模型"
         }
+
         set_model_window = tk.Toplevel(self.root)
         set_model_window.title(title[command])
-        self.messager.locate_window(set_model_window,self.root)
+        set_model_window.geometry("520x120")
+        self.messager.locate_window(set_model_window,self.root,520,120)
 
         model_name = ""
         if command == "edit":
-            model_name = self.model_binding_drop_var.get()
+            model_name = self.model_setting_drop_var.get()
         
         # 模型名称标签和文本框
         model_name_label = tk.Label(set_model_window, text="模型名称：")
@@ -699,14 +733,16 @@ class WrdaGui:
             # 删除按钮
             delete_button = tk.Button(set_model_window, text="删除", 
                                     command=lambda: self.save_model(window=set_model_window, 
-                                                                    old_name="",
-                                                                    new_name=model_name_entry.get(), 
+                                                                    client=self.client_setting_drop_var.get(),
+                                                                    old_name=self.model_setting_drop_var.get(),
+                                                                    new_name="", 
                                                                     command="delete"))
             delete_button.grid(row=3, column=0, padx=10, pady=10)
 
         # 保存按钮
         save_button = tk.Button(set_model_window, text="保存", 
                                 command=lambda: self.save_model(window=set_model_window, 
+                                                                client=self.client_setting_drop_var.get(),
                                                                 old_name=model_name,
                                                                 new_name=model_name_entry.get(), 
                                                                 command=command))
@@ -718,7 +754,7 @@ class WrdaGui:
 
 
 
-    def save_model(self,window,old_name,new_name,command):
+    def save_model(self,window:tk.Toplevel,client:str,old_name:str,new_name:str,command:str):
         """
         保存模型
         command : [add,edit,delet]
@@ -728,19 +764,30 @@ class WrdaGui:
             if new_name : 
                 # 保存
                 state = self.wrda.save_config(key="Models",
-                                              value=[command,old_name,new_name])
+                                              value=[command,client,old_name,new_name])
                 if state:
+                    # 提示保存成功
+                    self.messager.raise_info("Messages", "Saved", parent=window)
                     # 更新下拉菜单
-                    self.model_binding_drop_var.set(new_name)
-                    self.model_setting_dropdown["values"] = self.wrda.models
+                    self.model_setting_drop_var.set(new_name)
+                    self.model_setting_dropdown["values"] = self.wrda.clients[client].get("Models", [])
                     window.destroy()
             else:
                 self.messager.raise_info(type="Error", keyword="EmptyValue",parent=window)
         elif command == "delete":
             confirm = self.messager.raise_confirm(parent=window)
             if confirm:
-                self.wrda.save_config(key="Models",
-                                      value=[command,old_name,new_name])
+                state = self.wrda.save_config(key="Models",
+                                              value=[command,client,old_name,new_name])
+                if state:
+                    if old_name == self.wrda.selected_model:
+                        self.clear_binding()
+                    # 提示保存成功
+                    self.messager.raise_info("Messages", "Saved", parent=window)
+                    # 更新下拉菜单
+                    self.model_setting_drop_var.set(new_name)
+                    self.model_setting_dropdown["values"] = self.wrda.clients[client].get("Models", [])
+                    window.destroy()
 
     """
         -------------------------------------------------------------------------
@@ -751,13 +798,63 @@ class WrdaGui:
     def create_about_frame(self):
         frame = tk.Frame(self.root)
 
-        about_label = tk.Label(frame, text="Ciallo～(∠・ω< )⌒★")
-        about_label.pack(pady=5)
+        # 第一行：WeRead Dailyquestion Assistant（居中，加粗）
+        title_label = tk.Label(frame, 
+                               text="WeRead Dailyquestion Assistant", 
+                               font=(self.default_font, 16, "bold"), 
+                               justify="center")
+        title_label.pack(padx=10,pady=10)
+
+        # 第二行：版本
+        version_label = tk.Label(frame, text="版本：1.0.0", 
+                                 font=(self.default_font, 12), 
+                                 justify="center")
+        version_label.pack(padx=10,pady=5)
+
+        # 第三行：作者
+        author_label = tk.Label(frame, text="作者：ÆlieanZ", 
+                                font=(self.default_font, 12), 
+                                justify="center")
+        author_label.pack(padx=10,pady=5)
+        
+        # 第四行： 仓库源码
+        repo_link = "https://github.com/EileanZYZ/weread_dailyquestion_assistant"
+        repo_frame = tk.Frame(frame)
+        repo_label_1 = tk.Label(repo_frame, 
+                            text="仓库源码：", 
+                            font=(self.default_font, 12), 
+                            justify="left")
+        repo_label_1.pack(side=tk.LEFT, padx=0, pady=5)
+        repo_label_2 = tk.Label(repo_frame, 
+                            text="GitHub", 
+                            font=(self.default_font, 12), 
+                            justify="left", 
+                            fg="blue", 
+                            cursor="hand2")
+        repo_label_2.pack(side=tk.LEFT, padx=0, pady=5)
+        repo_label_2.bind("<Button-1>", 
+                        lambda e: self.open_url(repo_link))
+        repo_frame.pack(pady=5)
+
+        # 第五行：【声明】（居中，加粗）
+        disclaimer_title_label = tk.Label(frame, 
+                                          text="【声明】", 
+                                          font=(self.default_font, 14, "bold"), 
+                                          justify="center")
+        disclaimer_title_label.pack(padx=10,pady=10)
+
+        # 第六行：本软件仅供个人使用，不可用于商业用途（左对齐）
+        disclaimer_label = tk.Label(frame, 
+                                    text="本软件仅供个人使用，不可用于商业用途", 
+                                    font=(self.default_font, 12), 
+                                    justify="center")
+        disclaimer_label.pack(padx=10,pady=5)
 
         return frame
 
-    def show_about(self):
-        messagebox.showinfo("关于", "WeRead Daily Question Assistant\n版本: 1.0\n作者: 你的名字")
+    def open_url(self, url):
+        webbrowser.open(url)
+    
 
 if __name__ == "__main__":
     root = tk.Tk()
@@ -765,4 +862,5 @@ if __name__ == "__main__":
     print("Ciallo～(∠・ω< )⌒★")
     root.mainloop()
     # print("结束OCR服务")
-    app.wrda.ocr_manager.KillWeChatOCR()
+    if app.wrda.ocr_activated:
+        app.wrda.ocr_manager.KillWeChatOCR()

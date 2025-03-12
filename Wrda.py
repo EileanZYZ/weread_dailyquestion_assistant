@@ -3,8 +3,10 @@ import json
 import time
 import re
 import tkinter as tk
+from collections import OrderedDict
 from tkinter import ttk, messagebox, simpledialog, scrolledtext, filedialog
 from wechat_ocr.ocr_manager import OcrManager, OCR_MAX_TASK_ID
+from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
 from PIL import Image
 
 from module import QueryLLM
@@ -15,7 +17,7 @@ from module.RaiseInfo import Messager
 class Config():
     wechat_path : str = ""  # 微信路径
     wechat_ocr_path : str = ""  # wechat ocr路径
-    clients : dict = {} # 客户端列表，存有密钥
+    clients : OrderedDict = OrderedDict()  # 客户端列表，存有密钥；使用OrderedDict来保持顺序
     system_call : dict = {} # 系统角色prompt
     matcher : str = ""  # 正则表达式
 
@@ -29,7 +31,6 @@ class Config():
             # 加载配置
             self.load_config(self.config_path)
             # 自检
-            self.check_config()
         else:
             self.messager.raise_info("Error","ConfigNotFound")
 
@@ -38,26 +39,9 @@ class Config():
             config = json.load(f)
             self.wechat_path = config['App']['wechat_dir']
             self.wechat_ocr_path = config['App']['wechat_ocr_dir']
-            self.clients = config['Clients']
+            self.clients = OrderedDict(config['Clients'])  # 使用OrderedDict来保持顺序
             self.system_call = config['SystemCall']
             self.matcher = config['Filter']
-
-    def check_config(self,callback:bool=False):
-        """
-        配置自检
-        """
-        # 检查微信路径
-        if not os.path.exists(self.wechat_path):
-            self.messager.raise_info("Error","PathNotFound")
-        # 检查WeChatOcr路径
-        if not os.path.exists(self.wechat_ocr_path):
-            self.messager.raise_info("Error","WechatOcr")
-        # 检查客户端
-        if not self.clients:
-            self.messager.raise_info("Error","ClientNotFound")
-        # （可选）弹出自检完成窗口
-        elif callback:
-            self.messager.raise_info("Messages","Checked")
     
     def save_config(self, key: str, value: list) -> bool:
         """
@@ -69,7 +53,7 @@ class Config():
             -key-       -value-
             WeChat      [*wechat_dir*]
             WeChatOCR   [*wechat_ocr_dir*]
-            Client      [*client name*, *secret id*, *secret key*]
+            Clients     [*command*,*old name*, *new name*,  *secret id*, *secret key*]
             Models      [*command*, *client name*, *old name*, *new name*]
 
         """
@@ -91,54 +75,58 @@ class Config():
                 return False
             config['App']['wechat_ocr_dir'] = new_path
 
-        elif key == "Client":
+        elif key == "Clients":
             """
             客户端更新
-            value = [*command*, *client name*, *secret id*, *secret key*]
+            value = [*command*,*old name*, *new name*,  *secret id*, *secret key*]
 
             command list = ["add", "edit", "delete"]
             """
             if value[0] == "edit":  
                 # 编辑已有的client
-                config['Client'][value[1]]['secret_id'] = value[2]   
-                config['Client'][value[1]]['secret_key'] = value[3]  
+                if value[1] in config['Clients']:
+                    # 修改客户端名称
+                    config['Clients'][value[2]] = config['Clients'].pop(value[1])
+                    # 更新secret_id和secret_key
+                    config['Clients'][value[2]]['secret_id'] = value[3]   
+                    config['Clients'][value[2]]['secret_key'] = value[4]  
             elif value[0] == "add":
                 # 添加新的client
-                config['Client'][value[1]] = {
-                    'secret_id': value[2],
-                    'secret_key': value[3]
+                config['Clients'][value[2]] = {
+                    'secret_id': value[3],
+                    'secret_key': value[4],
+                    'Models' : []
                 }
             elif value[0] == "delete":
                 # 删除已有的client
-                del config['Client'][value[1]]
+                del config['Clients'][value[1]]
 
         elif key == "Models":
             """
             模型更新
-            value = [*command*, *old name*, *new name*]
+            value = [*command*, *cient name*, *old name*, *new name*]
 
             command list = ["add", "delete", "rename"]
             """
-            command = value[0]
-            if command == "add":    # 新增操作
-                # 将value[2]的值追加进config
-                if value[2] not in config['Models']:
-                    config['Models'].append(value[2])
+            if value[0] == "add":    # 新增操作
+                # 将value[3]的值追加进config
+                if value[2] not in config['Clients'][value[1]]['Models']:
+                    config['Clients'][value[1]]['Models'].append(value[3])
                 else:
                     self.messager.raise_info("Error", "ModelAlreadyExists")
                     return False
-            elif command == "edit": # 修改操作
-                # 获取value[1]在config中的索引，将其改为value[2]
-                if value[1] in config['Models']:
-                    index = config['Models'].index(value[1])
-                    config['Models'][index] = value[2]
+            elif value[0] == "edit": # 修改操作
+                # 获取value[2]在config中的索引，将其改为value[3]
+                if value[2] in config['Clients'][value[1]]['Models']:
+                    index = config['Clients'][value[1]]['Models'].index(value[2])
+                    config['Clients'][value[1]]['Models'][index] = value[3]
                 else:
                     self.messager.raise_info("Error", "ModelNotFound")
                     return False
-            elif command == "delete":
-                # 删除config中的value[1]
-                if value[1] in config['Models']:
-                    config['Models'].remove(value[1])
+            elif value[0] == "delete":
+                # 删除config['Clients'][value[1]]['Models']中的value[2]
+                if value[2] in config['Clients'][value[1]]['Models']:
+                    config['Clients'][value[1]]['Models'].remove(value[2])
                 else:
                     self.messager.raise_info("Error", "ModelNotFound")
                     return False
@@ -156,17 +144,13 @@ class Config():
         # 更新内部属性
         self.load_config(self.config_path)
 
-        # 提示保存成功
-        self.messager.raise_info("Messages", "Saved")
-
-        # 自检
-        self.check_config(callback=False)
-
         return True
 
 
 class WeReadDailyquestionAssistant(Config):
     ocr_result : str = ""   # ocr结果
+    ocr_activated : bool = False    # 是否开启ocr
+    llm_initialized : bool = False  # 是否初始化llm
     window_sreenshot = Image    # 窗口截图
     selected_model :str = ""    # 绑定的模型
     selected_client : dict = "" # 绑定的客户端
@@ -174,9 +158,6 @@ class WeReadDailyquestionAssistant(Config):
 
     def __init__(self,root):
         super().__init__(root) # 加载配置
-
-        # 启动OCR
-        self.init_ocr_manager()
 
     def init_screen_catcher(self):
         """
@@ -190,19 +171,31 @@ class WeReadDailyquestionAssistant(Config):
         """
         初始化ocr服务
         """
-        # print("初始化ocr服务...",end="")
-        self.ocr_manager = OcrManager(self.wechat_path)
-        # 设置WeChatOcr目录
-        self.ocr_manager.SetExePath(self.wechat_ocr_path)
-        # 设置微信所在路径
-        self.ocr_manager.SetUsrLibDir(self.wechat_path)
-        # 设置ocr识别结果的回调函数
-        self.ocr_manager.SetOcrResultCallback(self.ocr_callback)
-        # print("完成。")
+        state : bool = True
+        # 检查微信路径
+        if not os.path.exists(self.wechat_path):
+            self.messager.raise_info("Error","PathNotFound")
+            state = False
+        # 检查WeChatOcr路径
+        if not os.path.exists(self.wechat_ocr_path):
+            self.messager.raise_info("Error","PathNotFound")
+            state = False
+        if state:
+            # print("初始化ocr服务...",end="")
+            self.ocr_manager = OcrManager(self.wechat_path)
+            # 设置WeChatOcr目录
+            self.ocr_manager.SetExePath(self.wechat_ocr_path)
+            # 设置微信所在路径
+            self.ocr_manager.SetUsrLibDir(self.wechat_path)
+            # 设置ocr识别结果的回调函数
+            self.ocr_manager.SetOcrResultCallback(self.ocr_callback)
+            # print("完成。")
 
-        # 启动ocr服务
-        self.ocr_manager.StartWeChatOCR()
-        # print("ocr服务启动")
+            # 启动ocr服务
+            self.ocr_manager.StartWeChatOCR()
+
+            self.ocr_activated = True
+            # print("ocr服务启动")
 
     def ocr_callback(self,img_path:str,results:dict):
         """
@@ -252,9 +245,21 @@ class WeReadDailyquestionAssistant(Config):
         # print("正在初始化大模型...",end="")
         # print("确认密钥 \n SecretId:" + os.getenv(self.client["tencent_cloud"]["secret_id"])
             #   + "\n SecretKey:" + os.getenv(self.client["tencent_cloud"]["secret_key"]))
-        if self.selected_client:
-            self.llm = QueryLLM.tencentLLM(os.getenv(self.clients[self.selected_client]["secret_id"]), 
-                                        os.getenv(self.clients[self.selected_client]["secret_key"]))
+        try:
+            if self.selected_client:
+                self.llm = QueryLLM.tencentLLM(
+                    os.getenv(self.clients[self.selected_client]["secret_id"]), 
+                    os.getenv(self.clients[self.selected_client]["secret_key"])
+                )
+                self.llm_initialized = True
+                self.messager.raise_info("Messages","BindSuccess")
+            else:
+                self.messager.raise_info("Messages","ClientNotFound")
+        except Exception as e:
+            # 弹出错误窗口
+            self.messager.raise_info("Error", "MissModel")
+            # 或者使用自定义的消息提示器
+            # self.messager.raise_info("Error", f"大模型初始化失败: {str(e)}")
         # print("完成")
     
     def gen_params(self,prompt:str=None,misson:str="a") -> dict:
@@ -293,7 +298,7 @@ class WeReadDailyquestionAssistant(Config):
         mission_list : list = ["a","r"]
 
         # 检查：大模型是否已经初始化完成？截图区域已绑定？
-        if (not self.llm) and (not self.selected_model) and (not self.screen_catcher.target_window):
+        if (not self.llm_initialized) and (not self.selected_model) and (not self.screen_catcher.target_window):
             self.messager.raise_confirm("Error","DidNotInitService")
 
         # 判断：是否为直接识别图片并询问大模型？
