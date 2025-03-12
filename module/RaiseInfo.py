@@ -23,14 +23,16 @@ class Messager:
         "Error" : {
             "PathNotFound" : "找不到微信/微信OCR程序目录\n可能是由于微信更新，请重新设置路径",
             "ClientNotFound" : "缺少可用的云端大模型服务\n请注册一个腾讯云账号并填写密钥",
-            "ModelNotFound" : "缺少可用的模型\n请先在设置中选择一个可用的模型",
+            "MissModel" : "缺少可用的模型\n请先在绑定中选择一个可用的模型",
             "ConfigNotFound" : "找不到配置文件\n请检查配置文件Wrda.json是在\\config\\目录下",
             "InvalidPath" : "非法路径",
             "InvalidKey" : "非法关键字",
             "ModelAlreadyExists" : "模型名已存在",
             "ModelNotFound" : "模型不存在",
             "InvalidCommand" : "非法指令",
-            "EmptyValue" : "属性有空\n请确认填写完成所有字段"
+            "EmptyValue" : "属性有空\n请确认填写完成所有字段",
+            "QuestionEmpty" : "问题为空",
+            "DidNotInitService" : "服务未初始化\n请前往“绑定界面”，完成客户端、模型和识别区域的绑定后再开始答题"
         }
     }
 
