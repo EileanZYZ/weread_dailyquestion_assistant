@@ -164,7 +164,7 @@ class WeReadDailyquestionAssistant(Config):
         """
         初始化窗口截图器
         """
-        print("初始化screen_catche...")
+        # print("初始化screen_catche...")
         self.screen_catcher = CatchScreen.ScreenCatcher()
         self.screen_catcher_initialized = True
 
@@ -176,11 +176,11 @@ class WeReadDailyquestionAssistant(Config):
         state : bool = True
         # 检查微信路径
         if not os.path.exists(self.wechat_path):
-            self.messager.raise_info("Error","PathNotFound")
+            self.messager.raise_info("Error","WechatPathNotFound")
             state = False
         # 检查WeChatOcr路径
         if not os.path.exists(self.wechat_ocr_path):
-            self.messager.raise_info("Error","PathNotFound")
+            self.messager.raise_info("Error","WechatOcrPathNotFound")
             state = False
         if state:
             # print("初始化ocr服务...",end="")
@@ -197,6 +197,8 @@ class WeReadDailyquestionAssistant(Config):
             self.ocr_manager.StartWeChatOCR()
 
             self.ocr_activated = True
+
+            self.messager.raise_info("Messages","OcrStarted")
             # print("ocr服务启动")
 
     def ocr_callback(self,img_path:str,results:dict):
@@ -217,10 +219,10 @@ class WeReadDailyquestionAssistant(Config):
         else:
             self.ocr_result = final_result
         
-        if self.ocr_result:
-            print("成功。识别结果:\n" + self.ocr_result)
-        else:
-            print("失败，未提取到有效信息。\n源数据：" + final_result)
+        # if self.ocr_result:
+        #     print("成功。识别结果:\n" + self.ocr_result)
+        # else:
+        #     print("失败，未提取到有效信息。\n源数据：" + final_result)
 
     def extract_valid_text(self,final_results: str) -> str:
         """
@@ -244,50 +246,60 @@ class WeReadDailyquestionAssistant(Config):
         """
         初始化大模型
         """
-        print("正在初始化大模型...",end="")
+        # print("正在初始化大模型...",end="")
         # print("确认密钥 \n SecretId:" + os.getenv(self.client["tencent_cloud"]["secret_id"])
             #   + "\n SecretKey:" + os.getenv(self.client["tencent_cloud"]["secret_key"]))
         if not self.selected_client:
-            self.messager.raise_info("Error","ClientNotFound")
+            self.messager.raise_info("Error","DidNotFindClient")
             return False
         if not self.selected_model:
-            self.messager.raise_info("Error","MissModel")
+            self.messager.raise_info("Error","DidNotFindModel")
             return False
+        
+        # 获取配置中的 secret_id 和 secret_key
+        secret_id = self.clients[self.selected_client]["secret_id"]
+        secret_key = self.clients[self.selected_client]["secret_key"]
+        
+        # 检查 secret_id 是否是环境变量的键
+        if secret_id in os.environ:
+            secret_id = os.environ[secret_id]
+
+        # 检查 secret_key 是否是环境变量的键
+        if secret_key in os.environ:
+            secret_key = os.environ[secret_key]
+
         try:
-                self.llm = QueryLLM.tencentLLM(
-                    os.getenv(self.clients[self.selected_client]["secret_id"]), 
-                    os.getenv(self.clients[self.selected_client]["secret_key"])
-                )
+                self.llm = QueryLLM.tencentLLM(secret_id, secret_key)
                 self.llm_initialized = True
         except Exception as e:
             # 弹出错误窗口
-            self.messager.raise_info("Error", "MissModel")
+            self.messager.raise_info("Error", "CloudAuthorizeFailed")
             return False
             # 或者使用自定义的消息提示器
             # self.messager.raise_info("Error", f"大模型初始化失败: {str(e)}")
-        print("完成")
+        # print("完成")
         return True
     
-    def gen_params(self,prompt:str=None,misson:str="a") -> dict:
+    def gen_params(self,prompt:str=None,mission:str="a") -> dict:
         """
         生成Params（根据腾讯混元大模型接口）
         目前只能保证腾讯云混元服务的格式是对的
         等我大模型学扎实了再来改改
         """
-        print("selected_model:" + self.selected_model)
+        # print("selected_model:" + self.selected_model)
         if self.selected_model:
             params = {
             "Model": self.selected_model,
             "Messages": []
             }
             # 添加system Role
-            if self.system_call[misson]:
-                params["Messages"].append({"Role": "system","Content": self.system_call[misson]})
+            if self.system_call[mission]:
+                params["Messages"].append({"Role": "system","Content": self.system_call[mission]})
             # 添加user Role
             params["Messages"].append({"Role": "user","Content": prompt})
-            print(params)
+            # print(params)
         else:
-            self.messager.raise_info("Error","MissModel")
+            self.messager.raise_info("Error","DidNotFindModel")
             return None
         return params
     
@@ -307,10 +319,16 @@ class WeReadDailyquestionAssistant(Config):
         mission_list : list = ["a","r"]
 
         # 检查：大模型是否已经初始化完成？截图区域已绑定？
-        if not self.llm_initialized and not self.ocr_activated and not not self.screen_catcher_initialized:
-            self.messager.raise_info("Error","DidNotInitService")
+        if not self.llm_initialized :
+            self.messager.raise_info("Error","DidNotInitModel")
             return None
-        print("检查完成")
+        if not self.ocr_activated:
+            self.messager.raise_info("Error","DidNotInitOCR")
+            return None
+        if self.screen_catcher_initialized:
+            self.messager.raise_info("Error","DidNotInitScreenCatcher")
+            return None
+        # print("检查完成")
 
         # 判断：是否为直接识别图片并询问大模型？
         if question is None:
@@ -324,29 +342,29 @@ class WeReadDailyquestionAssistant(Config):
             由于wechat_ocr源码是本地批处理文件，ocr_manager不支持直接传入图片对象进行识别
             因此需要将图片暂存在本地，识别完成之后再删除。
             """
-            print("检查临时文件...",end="")
+            # print("检查临时文件...",end="")
             if os.path.exists(image_path):
                 os.remove(image_path)
-                print("临时文件已删除")
-            else:
-                print("临时文件不存在")
+                # print("临时文件已删除")
+            # else:
+            #     print("临时文件不存在")
 
             # 窗口截图并保存到temp目录下
             screenshot = self.screen_catcher.screen_shot(window=self.screen_catcher.target_window)
             screenshot.save(image_path)
 
-            print("识别图片...")
+            # print("识别图片...")
             self.ocr_manager.DoOCRTask(image_path)
             while self.ocr_manager.m_task_id.qsize() != OCR_MAX_TASK_ID:
                 pass
 
             # 删除图片文件
-            print("检查临时文件...",end="")
+            # print("检查临时文件...",end="")
             if os.path.exists(image_path):
                 os.remove(image_path)
-                print("临时文件已删除")
-            else:
-                print("临时文件不存在")
+                # print("临时文件已删除")
+            # else:
+            #     print("临时文件不存在")
             question = self.ocr_result  # 保存问题
             self.ocr_result = ""  # 清空ocr结果缓存
 
@@ -354,17 +372,18 @@ class WeReadDailyquestionAssistant(Config):
             self.messager.raise_info("Error","QuestionEmpty")
 
         # 询问大模型
-        print("正在询问大模型...")
+        # print("正在询问大模型...")
         if mission in mission_list:
-            answer = self.llm.query(params=self.gen_params(prompt=question, misson=mission))
-            print("答案：\n" + answer)
+            if params := self.gen_params(prompt=question, mission=mission):
+                answer = self.llm.query(params=params)
+                # print("答案：\n" + answer)
         else:
             self.messager.raise_info("Error","InvalidCommand")
 
         # 计算并打印总耗时
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"总耗时: {elapsed_time:.2f} 秒")
+        # print(f"总耗时: {elapsed_time:.2f} 秒")
 
         return [question, answer]
     

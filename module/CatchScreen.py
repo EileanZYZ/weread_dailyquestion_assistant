@@ -10,7 +10,7 @@ class ScreenCatcher:
     def select_window(self):
         """更改鼠标图标并等待窗口选择"""
         self.target_window = None   # 重置目标窗口
-        print("请选择窗口：")
+        # print("请选择窗口：")
         # 创建鼠标监听器
         with mouse.Listener(on_click=self.on_mouse_click) as listener:
             listener.join()
@@ -20,7 +20,7 @@ class ScreenCatcher:
             screenshot = self.screen_shot(self.target_window)
             return screenshot
         else:
-            print("未选择窗口，或目标窗口无法找到")
+            # print("未选择窗口，或目标窗口无法找到")
             return None
 
     def on_mouse_click(self, x, y, button, pressed):
@@ -45,14 +45,14 @@ class ScreenCatcher:
                         self.target_window = window
                         break
                 
-                if self.target_window:
-                    print("窗口选择完成")
+                # if self.target_window:
+                #     print("窗口选择完成")
                 
                 # 停止监听鼠标点击事件
                 return False
             elif button == mouse.Button.right:
                 # 取消监听并输出“窗口选择取消”
-                print("窗口选择取消")
+                # print("窗口选择取消")
                 return False
 
     def screen_shot(self, window):
@@ -65,14 +65,14 @@ class ScreenCatcher:
             截图的PIL Image对象
         """
         if window:
-            print("ScreanCatcher: 正在截取窗口区域...")
+            # print("ScreanCatcher: 正在截取窗口区域...")
             # 截取窗口区域
             window_screenshot = ImageGrab.grab(bbox=(window.left, window.top, window.left + window.width, window.top + window.height))
             # window_screenshot.save('window_screenshot.png')
             # print("窗口截图完成")
             return window_screenshot
         else:
-            # print("无法截取窗口，窗口对象为空")
+            # # print("无法截取窗口，窗口对象为空")
             return None
 
 # 示例调用

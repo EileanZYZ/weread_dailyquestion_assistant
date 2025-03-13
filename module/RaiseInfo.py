@@ -7,36 +7,44 @@ class Messager:
     # 消息列表
     info_list : dict = {
         "Messages" : {
-            # 消息
-		    "Saved" : "保存成功",
-            "PathSaved" : "路径保存成功，请重启程序后再连接OCR",
-            "Checked" : "自检完成",
-            # 窗口提示
-            "Wechat" : "在微信程序目录下，定位到一个名称为版本号的文件夹中",
-		    "WechatOcr" : "示例\nC:\\Users\\Administrator\\AppData\\Roaming\\Tencent\\WeChat\\XPlugin\\Plugins\\WeChatOCR\\7079\\extracted\\WeChatOCR.exe",
-            "SelectWindow" : "点击按钮后，再左键点击需要截图的窗口，右键取消选取\n选取成功后，请不要对目标窗口进行移动和遮挡",
-            "SelectRegion" : "点击按钮后，左键画出区域，松开左键完成选取，右键取消选取\n选取成功后，请不要对目标窗口进行移动和遮挡",
-            "AnswerQuestion" : "现在“绑定”页面选择截图识别的窗口/区域，再点击“答题”开始提问大模型\n如果识别结果大模型无法回答，可在人工编辑后点“发送”再次提问\n提问前，请确认所有设置均正确",
-            "Clients" : "目前只能保证支持腾讯云的混元大模型",
-            "Models" : "填写你申请到的模型名称，具体请参考云服务的相关文档\n如果您申请了腾讯云，那么预设的hunyuan-lite在您于云端开通了混元大模型服务后应该可以直接用",
-            "SetClient": "请优先选择腾讯云（tencent could）避免出现不可知的错误\n为了您的安全，请将SecretId和SecretKey保存在环境变量中，并在此填写相应的环境变量名",
+            # 系统消息
+		    "ConfigSaved" : "保存成功",   # 配置保存：客户端、模型的新增与编辑
+            "ConfigDeleted" : "删除成功",   # 配置删除：客户端、模型的删除
+            "PathSaved" : "路径保存成功，请重启程序后再连接OCR",    # 路径保存：微信路径、微信OCR路径
             "BindingCleared" : "由于被绑定的客户端/模型被修改/删除，请重新绑定",
-            "BindSuccess" : "绑定成功"
+            "BindSuccess" : "绑定成功",
+            "OcrStarted" : "OCR成功启动",
+
+            # 提示消息
+            "WechatInfo" : "在微信程序目录下，定位到一个名称为版本号的文件夹中",    # 微信路径提示
+		    "WechatOcrInfo" : "示例\nC:\\Users\\Administrator\\AppData\\Roaming\\Tencent\\WeChat\\XPlugin\\Plugins\\WeChatOCR\\7079\\extracted\\WeChatOCR.exe", # 微信OCR路径提示
+            "SelectWindowInfo" : "点击按钮后，再左键点击需要截图的窗口，右键取消选取\n选取成功后，请不要对目标窗口进行移动和遮挡",  # 选取窗口提示
+            "SelectRegionInfo" : "点击按钮后，左键画出区域，松开左键完成选取，右键取消选取\n选取成功后，请不要对目标窗口进行移动和遮挡",    # 选取区域提示
+            "AnswerQuestionInfo" : "如何开始：\n1、确认云服务、模型名及路径配置正确。\n2、来到“绑定”页面，点击“连接大模型”，然后进行识别区域的绑定。\n3、来到“答题”页面，点击“连接OCR”。\n4、以上步骤全部成功后，开始答题。\n按钮功能：\n[识别]：利用大模型提取OCR结果中的题目和选项，并自动复制到剪贴板\n[识别并答题]：直接向大模型发送识别结果并回答，如果识别效果较差则有可能失败\n[发送]在编辑OCR文本框中的内容后可点击，并将编辑后的文本再次发送给大模型进行回答\n[复制结果]：将大模型回答复制到剪贴板",   # 答题页面帮助信息
+            "ClientsSettingInfo" : "目前只支持腾讯云的混元大模型。\n同时，为了保证密钥安全，推荐将SecretId和SecretKey保存在环境变量中，再在配置文件中填写对应的变量名。",  # 客户端配置帮助信息
+            "ModelsSettingInfo" : "填写你申请到的模型名称，具体请参考云服务的相关文档。\n【注意】请务必确保填写的模型名与文档中的接口一直，否则无法连接。\n腾讯云服务有免费的hunyuan-lite，在您于云端开通了混元大模型服务后就可以直接使用。"   # 模型配置帮助信息
         },
         "Error" : {
-            "PathNotFound" : "找不到微信/微信OCR程序目录\n可能是由于微信更新，请重新设置路径",
-            "ClientNotFound" : "缺少可用的云端大模型服务\n请注册一个腾讯云账号并填写密钥",
-            "MissModel" : "缺少可用的模型\n请先在绑定中选择一个可用的模型",
+            # 配置报错
+            "WechatPathNotFound" : "找不到微信目录\n可能是由于微信更新，请重新设置路径",
+            "WechatOcrPathNotFound" : "找不到WeChat.exe\n请设置正确的路径",
+            "ModelNotFound" : "模型不存在",
             "ConfigNotFound" : "找不到配置文件\n请检查配置文件Wrda.json是在\\config\\目录下",
+            # 运行报错
+            "DidNotFindModel" : "缺少可用的模型\n请先在绑定中选择一个可用的模型",
+            "DidNotFindClient" : "缺少可用的云端大模型服务\n请注册一个腾讯云账号并填写密钥",
+            "CloudAuthorizeFailed" : "云服务认证失败\n请检查ID和密钥是否正确",
+            "DidNotInitModel" : "大模型服务未初始化\n请前往“绑定界面”，完成客户端、模型和识别区域的绑定后再开始答题",
+            "DidNotInitOCR" : "未初始化OCR\n请先点击“连接OCR”，启动识别服务",
+            "DidNotInitScreenCatcher" : "没有选定识别区域\n请先前往“绑定”页面，选择识别区域",
+            "BindFailed" : "绑定失败\n请确认客户端和模型各字段有效",
+            # 调试报错
             "InvalidPath" : "非法路径",
             "InvalidKey" : "非法关键字",
             "ModelAlreadyExists" : "模型名已存在",
-            "ModelNotFound" : "模型不存在",
             "InvalidCommand" : "非法指令",
             "EmptyValue" : "属性有空\n请确认填写完成所有字段",
-            "QuestionEmpty" : "问题为空",
-            "DidNotInitService" : "服务未初始化\n请前往“绑定界面”，完成客户端、模型和识别区域的绑定后再开始答题",
-            "BindFailed" : "绑定失败\n请确认客户端和模型各字段有效"
+            "QuestionEmpty" : "问题为空"
         }
     }
 
@@ -67,7 +75,7 @@ class Messager:
         # 创建一个新的 Toplevel 窗口
         screen_shot_window = tk.Toplevel(self.root)
         screen_shot_window.title("窗口截图成功")
-        print("窗口截图成功")
+        # print("窗口截图成功")
 
         self.locate_window(screen_shot_window,self.root)
 

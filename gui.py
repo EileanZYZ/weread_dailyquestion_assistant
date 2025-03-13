@@ -123,7 +123,7 @@ class WrdaGui:
         # 链接OCR按钮
         self.ocr_manager_botton = tk.Button(frame,
                                             text="连接OCR", 
-                                            command=self.wrda.init_ocr_manager,
+                                            command=self.link_ocr,
                                             width=10, height=1)
         self.ocr_manager_botton.grid(row=0, column=0, padx=5, pady=5,sticky="nw")
         # 识别按钮
@@ -143,7 +143,7 @@ class WrdaGui:
                                        text="?", 
                                        fg="blue",
                                        relief=tk.FLAT,
-                                       command=lambda: self.messager.raise_info("Messages", "AnswerQuestion"))
+                                       command=lambda: self.messager.raise_info("Messages", "AnswerQuestionInfo"))
         answer_info_button.grid(row=0, column=3, padx=5, pady=5, sticky="ne")
 
 
@@ -189,6 +189,11 @@ class WrdaGui:
 
         return frame
     
+    def link_ocr(self):
+        self.wrda.init_ocr_manager()
+        if self.wrda.ocr_activated:
+            self.ocr_manager_botton.config(text="已连接",state=tk.DISABLED)
+    
     def select_region(self):
         messagebox.showinfo("咕", "这个功能还没做")
 
@@ -206,38 +211,38 @@ class WrdaGui:
                 question为空：OCR文本框中无文本
                 --> 用户选择直接识别并答题
                 """
-                print("用户选择直接识别并答题")
+                # print("用户选择直接识别并答题")
                 # 清空OCR文本框
                 self.ocr_result_text.delete(1.0, tk.END)
                 # 获取OCR结果和答案
                 result : list = self.wrda.answer_question(mission=mission)
                 # 向OCR结果文本框中输入新的内容
-                self.ocr_result_text.insert(tk.END, result[0])
+                self.ocr_result_text.insert(tk.END, result[0] if result else "")
             else:
                 """
                 question不为空：“发送”被点击
                 """
-                print("用户发送问题")
+                # print("用户发送问题")
                 # 发送问题
                 result : list = self.wrda.answer_question(question=question,mission=mission)
             # 清空AI回答文本框的现有内容
             self.answer_text.delete(1.0, tk.END)
             # 输出AI回答
-            self.answer_text.insert(tk.END, result[1])
+            self.answer_text.insert(tk.END, result[1] if result else "")
         elif mission == "r":
             """
             --> 用户选择识别问题
             """
-            print("用户选择识别问题")
+            # print("用户选择识别问题")
             # 清空OCR文本框
             self.ocr_result_text.delete(1.0, tk.END)
             # 获取OCR结果和答案
             result : list = self.wrda.answer_question(mission=mission)
-            print("result:\n" + result[1])
+            # print("result:\n" + result[1])
             # 清空AI回答文本框的现有内容
             self.answer_text.delete(1.0, tk.END)
             # 向OCR结果文本框中输入新的内容(识别结果)
-            self.ocr_result_text.insert(tk.END, result[1])
+            self.ocr_result_text.insert(tk.END, result[1] if result else "")
             self.copy_text(entry=self.ocr_result_text)  # 自动复制识别结果到剪切板
 
     def enable_send_button(self, event):
@@ -302,7 +307,7 @@ class WrdaGui:
         self.model_binding_dropdown.bind("<<ComboboxSelected>>", self.update_binding_model)
 
         # 客户端-模型绑定
-        client_model_bind_button = tk.Button(frame, text="绑定&连接", 
+        client_model_bind_button = tk.Button(frame, text="连接大模型", 
                                              command=self.llm_bind_link,
                                              font=(self.default_font, 12), 
                                              width=20)
@@ -335,7 +340,7 @@ class WrdaGui:
                                                 text="?", 
                                                 fg="blue",
                                                 relief=tk.FLAT,
-                                                command=lambda: self.messager.raise_info("Messages","SelectRegion"))
+                                                command=lambda: self.messager.raise_info("Messages","SelectRegionInfo"))
         region_binding_info_button.grid(row=0, column=2, pady=10, padx=15)
         self.region_binding_frame.grid(row=4, column=0, columnspan=2, pady=5, padx=15, sticky="nsew")  # 使用grid布局
 
@@ -354,7 +359,7 @@ class WrdaGui:
                                             text="?", 
                                             fg="blue", 
                                             relief=tk.FLAT, 
-                                            command=lambda: self.messager.raise_info("Messages","SelectWindow"))
+                                            command=lambda: self.messager.raise_info("Messages","SelectWindowInfo"))
         window_binding_info_button.grid(row=0, column=2, pady=10, padx=15)
         self.window_binding_frame.grid(row=4, column=0, columnspan=2, pady=5, padx=15, sticky="nsew")  # 使用grid布局
 
@@ -366,11 +371,11 @@ class WrdaGui:
         return frame
     
     def llm_bind_link(self):
-        print("开始绑定")
+        # print("开始绑定")
         self.wrda.selected_client = self.client_binding_drop_var.get()
         self.wrda.selected_model = self.model_binding_drop_var.get()
-        print("selected client:" + self.wrda.selected_client)
-        print("selected model:" + self.wrda.selected_model)
+        # print("selected client:" + self.wrda.selected_client)
+        # print("selected model:" + self.wrda.selected_model)
         if self.wrda.init_llm():
             self.messager.raise_info("Messages","BindSuccess")
 
@@ -466,7 +471,7 @@ class WrdaGui:
                                        text="?", 
                                        fg="blue", 
                                        relief=tk.FLAT,
-                                       command=lambda: self.messager.raise_info("Messages","Wechat"))
+                                       command=lambda: self.messager.raise_info("Messages","WechatInfo"))
         wechat_info_button.grid(row=1, column=4, pady=5, padx=(0, 10))
 
         # Wechat_OCR设置
@@ -491,7 +496,7 @@ class WrdaGui:
                                            text="?", 
                                            fg="blue", 
                                            relief=tk.FLAT,
-                                           command=lambda: self.messager.raise_info("Messages","WechatOcr"))
+                                           command=lambda: self.messager.raise_info("Messages","WechatOcrInfo"))
         wechat_ocr_info_button.grid(row=2, column=4, pady=10, padx=(0, 10))
 
         # Client下拉菜单及其相关按钮
@@ -520,7 +525,7 @@ class WrdaGui:
                                        text="?", 
                                        fg="blue", 
                                        relief=tk.FLAT,
-                                       command=lambda: self.messager.raise_info("Messages","Clients"))
+                                       command=lambda: self.messager.raise_info("Messages","ClientsSettingInfo"))
         client_info_button.grid(row=3, column=4, pady=10, padx=(0, 10))
 
         # Model下拉菜单及其相关按钮
@@ -546,7 +551,7 @@ class WrdaGui:
                                            text="?", 
                                            fg="blue", 
                                            relief=tk.FLAT,
-                                           command=lambda: self.messager.raise_info("Messages","Models"))
+                                           command=lambda: self.messager.raise_info("Messages","ModelsSettingInfo"))
         model_info_button.grid(row=4, column=4, pady=5, padx=(0, 10))
 
         # 更新client和model列表
@@ -633,7 +638,7 @@ class WrdaGui:
                                         text="?", 
                                         fg="blue", 
                                         relief=tk.FLAT,
-                                        command=lambda: self.messager.raise_info(type="Messages", keyword="SetClient", parent=set_client_window))
+                                        command=lambda: self.messager.raise_info(type="Messages", keyword="ClientsSettingInfo", parent=set_client_window))
         set_client_info_button.grid(row=0, column=2, padx=5, pady=5)
 
         # SecretId标签、文本框和info按钮
@@ -689,7 +694,7 @@ class WrdaGui:
                                               value=[command,old_name,new_name,secret_id,secret_key])
                 if state:
                     # 提示保存成功
-                    self.messager.raise_info("Messages", "Saved", parent=window)
+                    self.messager.raise_info("Messages", "ConfigSaved", parent=window)
                     # 更新下拉菜单
                     self.client_setting_drop_var.set(new_name)
                     self.client_setting_dropdown["values"] = list(self.wrda.clients.keys())
@@ -705,7 +710,7 @@ class WrdaGui:
                                               value=[command,old_name,new_name,secret_id,secret_key])
                 if state:
                     # 提示保存成功
-                    self.messager.raise_info("Messages", "Saved", parent=window)
+                    self.messager.raise_info("Messages", "ConfigDeleted", parent=window)
                     # 更新下拉菜单
                     self.client_setting_drop_var.set(new_name)
                     self.client_setting_dropdown["values"] = list(self.wrda.clients.keys())
@@ -783,7 +788,7 @@ class WrdaGui:
                                               value=[command,client,old_name,new_name])
                 if state:
                     # 提示保存成功
-                    self.messager.raise_info("Messages", "Saved", parent=window)
+                    self.messager.raise_info("Messages", "ConfigSaved", parent=window)
                     # 更新下拉菜单
                     self.model_setting_drop_var.set(new_name)
                     self.model_setting_dropdown["values"] = self.wrda.clients[client].get("Models", [])
@@ -799,7 +804,7 @@ class WrdaGui:
                     if old_name == self.wrda.selected_model:
                         self.clear_binding()
                     # 提示保存成功
-                    self.messager.raise_info("Messages", "Saved", parent=window)
+                    self.messager.raise_info("Messages", "ConfigDeleted", parent=window)
                     # 更新下拉菜单
                     self.model_setting_drop_var.set(new_name)
                     self.model_setting_dropdown["values"] = self.wrda.clients[client].get("Models", [])
