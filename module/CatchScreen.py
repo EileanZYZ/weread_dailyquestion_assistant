@@ -69,10 +69,10 @@ class ScreenCatcher:
             # 截取窗口区域
             window_screenshot = ImageGrab.grab(bbox=(window.left, window.top, window.left + window.width, window.top + window.height))
             # window_screenshot.save('window_screenshot.png')
-            print("窗口截图完成")
+            # print("窗口截图完成")
             return window_screenshot
         else:
-            print("无法截取窗口，窗口对象为空")
+            # print("无法截取窗口，窗口对象为空")
             return None
 
 # 示例调用

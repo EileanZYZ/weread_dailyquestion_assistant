@@ -63,7 +63,7 @@ class Messager:
         
 
     def raise_picture(self,screen_shot):
-        print("show_screenshot:",end="")
+        # print("show_screenshot:",end="")
         # 创建一个新的 Toplevel 窗口
         screen_shot_window = tk.Toplevel(self.root)
         screen_shot_window.title("窗口截图成功")

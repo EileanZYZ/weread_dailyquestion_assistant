@@ -129,13 +129,13 @@ class WrdaGui:
         # 识别按钮
         answer_recognaize_button = tk.Button(frame,
                                              text="识别", 
-                                             command=lambda: self.wrda.answer_question(),
+                                             command=lambda: self.start_answer_question(mission="r"),
                                              width=15, height=1)
         answer_recognaize_button.grid(row=0, column=1, padx=5, pady=5, sticky="nw")
         # 答题按钮
         answer_button = tk.Button(frame, 
                                   text="识别并答题",
-                                  command=self.answer_question, # 回调方法：OCR识别并答题
+                                  command=self.start_answer_question, # 回调方法：OCR识别并答题
                                   width=15, height=1)
         answer_button.grid(row=0, column=2, padx=5, pady=5, sticky="nw")
         # 提示按钮
@@ -160,14 +160,14 @@ class WrdaGui:
                                                          font=(self.default_font, 10))
         self.ocr_result_text.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
         # 绑定键盘事件，当文本区域中的按键释放（修改了文本）时，调用enable_send_button方法
-        self.ocr_result_text.bind("<KeyRelease>", self.enable_send_button)
+        self.ocr_result_text.bind("<KeyRelease>",self.enable_send_button)
         # 发送按钮
-        send_button = tk.Button(frame,
-                                text="发送", 
-                                command=lambda: self.answer_question(self.ocr_result_text.get(1.0, tk.END).strip()), 
-                                state=tk.DISABLED,
-                                width=10, height=1)
-        send_button.grid(row=3, column=1, padx=5, pady=5, sticky="nw")
+        self.answer_send_button = tk.Button(frame,
+                                            text="发送", 
+                                            command=lambda: self.start_answer_question(self.ocr_result_text.get(1.0, tk.END).strip(),mission="a"), 
+                                            state=tk.DISABLED,
+                                            width=10, height=1)
+        self.answer_send_button.grid(row=3, column=1, padx=5, pady=5, sticky="nw")
 
         # AI答案label
         answer_label = tk.Label(frame,
@@ -192,7 +192,7 @@ class WrdaGui:
     def select_region(self):
         messagebox.showinfo("咕", "这个功能还没做")
 
-    def answer_question(self,question:str="",mission:str="a"):
+    def start_answer_question(self,question:str="",mission:str="a"):
         """
         回答问题并更新OCR结果显示。
         mission: a-回答问题，r-识别问题
@@ -206,18 +206,20 @@ class WrdaGui:
                 question为空：OCR文本框中无文本
                 --> 用户选择直接识别并答题
                 """
+                print("用户选择直接识别并答题")
                 # 清空OCR文本框
                 self.ocr_result_text.delete(1.0, tk.END)
                 # 获取OCR结果和答案
-                result : list = self.wrda.answer_question()
+                result : list = self.wrda.answer_question(mission=mission)
                 # 向OCR结果文本框中输入新的内容
                 self.ocr_result_text.insert(tk.END, result[0])
             else:
                 """
                 question不为空：“发送”被点击
                 """
+                print("用户发送问题")
                 # 发送问题
-                result : list = self.wrda.answer_question(question)
+                result : list = self.wrda.answer_question(question=question,mission=mission)
             # 清空AI回答文本框的现有内容
             self.answer_text.delete(1.0, tk.END)
             # 输出AI回答
@@ -226,10 +228,14 @@ class WrdaGui:
             """
             --> 用户选择识别问题
             """
+            print("用户选择识别问题")
             # 清空OCR文本框
             self.ocr_result_text.delete(1.0, tk.END)
             # 获取OCR结果和答案
-            result : list = self.wrda.answer_question()
+            result : list = self.wrda.answer_question(mission=mission)
+            print("result:\n" + result[1])
+            # 清空AI回答文本框的现有内容
+            self.answer_text.delete(1.0, tk.END)
             # 向OCR结果文本框中输入新的内容(识别结果)
             self.ocr_result_text.insert(tk.END, result[1])
             self.copy_text(entry=self.ocr_result_text)  # 自动复制识别结果到剪切板
@@ -239,9 +245,9 @@ class WrdaGui:
         启用发送按钮
         """
         if self.ocr_result_text.get(1.0, tk.END).strip():
-            self.send_button.config(state=tk.NORMAL)
+            self.answer_send_button.config(state=tk.NORMAL)
         else:
-            self.send_button.config(state=tk.DISABLED)
+            self.answer_send_button.config(state=tk.DISABLED)
 
     def copy_text(self,entry):
         """
@@ -296,8 +302,8 @@ class WrdaGui:
         self.model_binding_dropdown.bind("<<ComboboxSelected>>", self.update_binding_model)
 
         # 客户端-模型绑定
-        client_model_bind_button = tk.Button(frame, text="确认绑定", 
-                                             command=self.wrda.init_llm,
+        client_model_bind_button = tk.Button(frame, text="绑定&连接", 
+                                             command=self.llm_bind_link,
                                              font=(self.default_font, 12), 
                                              width=20)
         client_model_bind_button.grid(row=2, column=1, pady=10, padx=15)
@@ -358,6 +364,16 @@ class WrdaGui:
         self.update_binding_method(None)
 
         return frame
+    
+    def llm_bind_link(self):
+        print("开始绑定")
+        self.wrda.selected_client = self.client_binding_drop_var.get()
+        self.wrda.selected_model = self.model_binding_drop_var.get()
+        print("selected client:" + self.wrda.selected_client)
+        print("selected model:" + self.wrda.selected_model)
+        if self.wrda.init_llm():
+            self.messager.raise_info("Messages","BindSuccess")
+
 
     def update_binding_client(self,event):
         """
