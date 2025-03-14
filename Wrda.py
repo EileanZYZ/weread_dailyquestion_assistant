@@ -325,7 +325,7 @@ class WeReadDailyquestionAssistant(Config):
         if not self.ocr_activated:
             self.messager.raise_info("Error","DidNotInitOCR")
             return None
-        if self.screen_catcher_initialized:
+        if not self.screen_catcher_initialized:
             self.messager.raise_info("Error","DidNotInitScreenCatcher")
             return None
         # print("检查完成")
