@@ -1,4 +1,4 @@
-# WeRead Daily question Assistant (Wrda)
+# WeRead Dailyquestion Assistant (Wrda)
 
 微信读书每日答题小助手
 
@@ -8,7 +8,7 @@
 
 本项目仅供个人使用，请勿用于商业用途。
 
-## 开始之前…
+## 开始
 
 你需要准备：
 
